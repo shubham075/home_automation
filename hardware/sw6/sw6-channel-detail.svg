@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 700" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13">
+  <title>SW6 — one channel detail (input sense + relay output)</title>
+  <style>
+    .box{fill:#ffffff;stroke:#334155;stroke-width:1.5}
+    .h{font-weight:700;font-size:14px;fill:#0f172a}
+    .t{fill:#334155}
+    .s{fill:#64748b;font-size:11.5px}
+    .pin{fill:#0f172a;font-size:12px;font-family:Consolas, Menlo, monospace}
+    .L{stroke:#dc2626;stroke-width:2.5;fill:none}
+    .N{stroke:#2563eb;stroke-width:2.5;fill:none}
+    .sw{stroke:#ea580c;stroke-width:2;fill:none}
+    .v5{stroke:#b91c1c;stroke-width:2;fill:none}
+    .v33{stroke:#d97706;stroke-width:2;fill:none}
+    .gnd{stroke:#0f172a;stroke-width:2;fill:none}
+    .sig{stroke:#16a34a;stroke-width:2;fill:none}
+    .w{stroke:#334155;stroke-width:1.8;fill:none}
+  </style>
+  <rect width="1280" height="700" fill="#ffffff"/>
+  <text x="24" y="34" font-size="20" font-weight="700" fill="#0f172a">SW6 — one channel in detail (repeat × 6)</text>
+  <text x="24" y="56" class="s">Left: isolated wall-switch sensing. Right: relay output (circuitry already on the relay module). Values for 230 V / 50 Hz.</text>
+
+  <!-- ============ PANEL A: INPUT ============ -->
+  <rect x="16" y="72" width="620" height="612" fill="#fafafa" stroke="#cbd5e1" rx="8"/>
+  <text x="32" y="98" class="h">A · Wall-switch sense input (PC817)</text>
+
+  <!-- L source -->
+  <text x="34" y="205" fill="#dc2626" font-weight="700">L</text>
+  <path class="L" d="M50,200 H80"/>
+  <!-- switch -->
+  <circle cx="84" cy="200" r="4" fill="#ea580c"/>
+  <path class="sw" d="M88,200 L120,184"/>
+  <circle cx="124" cy="200" r="4" fill="#ea580c"/>
+  <text x="104" y="176" class="s" text-anchor="middle">S1 wall switch</text>
+  <path class="sw" d="M128,200 H160"/>
+  <!-- R1 R2 -->
+  <rect x="160" y="190" width="56" height="20" class="box" rx="3"/>
+  <text x="188" y="204" class="pin" text-anchor="middle">R1</text>
+  <text x="188" y="228" class="s" text-anchor="middle">100 kΩ ½ W</text>
+  <path class="sw" d="M216,200 H240"/>
+  <rect x="240" y="190" width="56" height="20" class="box" rx="3"/>
+  <text x="268" y="204" class="pin" text-anchor="middle">R2</text>
+  <text x="268" y="228" class="s" text-anchor="middle">100 kΩ ½ W</text>
+  <path class="sw" d="M296,200 H400"/>
+  <circle cx="340" cy="200" r="3.5" fill="#ea580c"/>
+
+  <!-- antiparallel diode -->
+  <path class="w" d="M340,200 V236"/>
+  <path d="M330,262 L350,262 L340,244 Z" fill="#334155"/>
+  <line x1="330" y1="244" x2="350" y2="244" stroke="#334155" stroke-width="2"/>
+  <path class="w" d="M340,262 V300"/>
+  <text x="300" y="258" class="s" text-anchor="end">D1</text>
+  <text x="300" y="272" class="s" text-anchor="end">1N4007</text>
+  <circle cx="340" cy="300" r="3.5" fill="#2563eb"/>
+
+  <!-- PC817 -->
+  <rect x="400" y="160" width="140" height="170" class="box" rx="6"/>
+  <text x="470" y="152" class="h" text-anchor="middle">PC817</text>
+  <line x1="470" y1="166" x2="470" y2="324" stroke="#94a3b8" stroke-dasharray="4 4"/>
+  <text x="408" y="196" class="pin" font-size="10">1 A</text>
+  <text x="408" y="304" class="pin" font-size="10">2 K</text>
+  <text x="532" y="196" class="pin" font-size="10" text-anchor="end">4 C</text>
+  <text x="532" y="304" class="pin" font-size="10" text-anchor="end">3 E</text>
+  <!-- LED -->
+  <path class="w" d="M400,200 H440 V232"/>
+  <path d="M430,232 L450,232 L440,250 Z" fill="#334155"/>
+  <line x1="430" y1="250" x2="450" y2="250" stroke="#334155" stroke-width="2"/>
+  <path class="w" d="M440,250 V300 H400"/>
+  <path d="M452,236 l10,-6 M452,246 l10,-6" stroke="#f59e0b" stroke-width="2"/>
+  <!-- phototransistor -->
+  <path class="w" d="M540,200 H500 V228"/>
+  <line x1="490" y1="226" x2="490" y2="256" stroke="#334155" stroke-width="2.5"/>
+  <path class="w" d="M490,234 L500,228"/>
+  <path class="w" d="M490,248 L500,256 V300 H540"/>
+
+  <!-- N return -->
+  <path class="N" d="M400,300 H340 V360 H50"/>
+  <text x="34" y="365" fill="#2563eb" font-weight="700">N</text>
+
+  <!-- output side -->
+  <path class="sig" d="M540,200 H600"/>
+  <circle cx="572" cy="200" r="3.5" fill="#16a34a"/>
+  <path class="w" d="M572,200 V170"/>
+  <rect x="562" y="122" width="20" height="48" class="box" rx="3"/>
+  <text x="592" y="146" class="s">R3</text>
+  <text x="592" y="160" class="s">10 kΩ</text>
+  <path class="v33" d="M572,122 V106"/>
+  <text x="572" y="100" fill="#d97706" font-weight="700" text-anchor="middle">3V3</text>
+  <text x="604" y="204" class="pin">GPIO0</text>
+  <text x="604" y="220" class="s">(S1)</text>
+  <path class="gnd" d="M540,300 H572 V316"/>
+  <path class="gnd" d="M560,316 H584 M564,322 H580 M568,328 H576"/>
+
+  <!-- barrier tag -->
+  <text x="470" y="346" class="s" text-anchor="middle">← 230 V | 3.3 V →</text>
+
+  <!-- waveform -->
+  <text x="32" y="402" class="h">What the GPIO sees</text>
+  <g transform="translate(40,420)">
+    <text x="0" y="12" class="s">switch OFF</text>
+    <path class="sig" d="M80,8 H260"/>
+    <text x="270" y="12" class="s">HIGH (pull-up)</text>
+    <text x="0" y="52" class="s">switch ON</text>
+    <path class="sig" d="M80,40 H96 V64 H106 V40 H116 V64 H126 V40 H136 V64 H146 V40 H156 V64 H166 V40 H176 V64 H186 V40 H196 V64 H206 V40 H216 V64 H226 V40 H236 V64 H246 V40 H260"/>
+    <text x="270" y="56" class="s">LOW pulse every 20 ms (50 Hz half-cycle)</text>
+  </g>
+  <g class="s">
+    <text x="32" y="520">• Firmware rule: <tspan font-weight="700" fill="#0f172a">ON</tspan> if ≥ 1 LOW pulse seen in the last 30 ms, else OFF.</text>
+    <text x="32" y="540">• Edge (OFF→ON or ON→OFF) after 2 stable windows → toggle relay (input_mode = toggle).</text>
+    <text x="32" y="560">• LED current ≈ 230 V ÷ 200 kΩ ≈ 1.15 mA → enough for PC817 (CTR ≥ 50 %).</text>
+    <text x="32" y="580">• Power per resistor ≈ 0.13 W → use ½ W, two in series to share voltage stress.</text>
+    <text x="32" y="600">• D1 protects the PC817 LED (max reverse 6 V) on negative half-cycles.</text>
+    <text x="32" y="620">• Keep R1/R2/D1/LED side ≥ 6 mm from any 3.3 V copper or wire.</text>
+    <text x="32" y="640">• Bench start: replace S1 + R1/R2 with a push button to GND (no mains needed).</text>
+  </g>
+
+  <!-- ============ PANEL B: RELAY OUTPUT ============ -->
+  <rect x="652" y="72" width="612" height="612" fill="#fafafa" stroke="#cbd5e1" rx="8"/>
+  <text x="668" y="98" class="h">B · Relay output (per channel)</text>
+
+  <!-- module boundary -->
+  <rect x="740" y="120" width="320" height="300" fill="none" stroke="#64748b" stroke-dasharray="6 5" rx="8"/>
+  <text x="900" y="412" class="s" text-anchor="middle">one channel of the relay module (pre-built)</text>
+
+  <!-- pins -->
+  <text x="676" y="156" class="pin" fill="#d97706">3V3</text>
+  <path class="v33" d="M706,152 H760"/>
+  <text x="746" y="146" class="pin" font-size="10">VCC</text>
+  <text x="668" y="236" class="pin">GPIO18</text>
+  <path class="sig" d="M722,232 H800"/>
+  <text x="746" y="226" class="pin" font-size="10">IN1</text>
+  <text x="676" y="132" class="pin" fill="#b91c1c">5V</text>
+  <path class="v5" d="M700,128 H940 V150"/>
+  <text x="900" y="122" class="pin" font-size="10">JD-VCC</text>
+
+  <!-- opto in module -->
+  <path class="v33" d="M760,152 H800 V166"/>
+  <rect x="790" y="166" width="20" height="30" class="box" rx="2"/>
+  <text x="776" y="186" class="s" text-anchor="end">1 kΩ</text>
+  <path class="w" d="M800,196 V204"/>
+  <path d="M790,204 L810,204 L800,220 Z" fill="#334155"/>
+  <line x1="790" y1="220" x2="810" y2="220" stroke="#334155" stroke-width="2"/>
+  <path class="w" d="M800,220 V232"/>
+  <path d="M814,206 l10,-6 M814,216 l10,-6" stroke="#f59e0b" stroke-width="2"/>
+  <text x="836" y="196" class="s">opto</text>
+
+  <!-- transistor + coil -->
+  <rect x="926" y="150" width="28" height="60" fill="#e2e8f0" stroke="#334155" rx="3"/>
+  <text x="962" y="176" class="s">coil</text>
+  <text x="962" y="190" class="s">≈ 72 mA</text>
+  <!-- flyback diode -->
+  <path class="w" d="M940,150 H906 V170"/>
+  <path d="M896,190 L916,190 L906,172 Z" fill="#334155"/>
+  <line x1="896" y1="172" x2="916" y2="172" stroke="#334155" stroke-width="2"/>
+  <path class="w" d="M906,190 V222 H940"/>
+  <text x="890" y="206" class="s" text-anchor="end">flyback</text>
+  <path class="w" d="M940,210 V244"/>
+  <circle cx="940" cy="262" r="18" class="box"/>
+  <text x="940" y="266" class="pin" text-anchor="middle" font-size="10">Q</text>
+  <path class="w" d="M836,232 H880 V262 H922"/>
+  <text x="852" y="252" class="s">base</text>
+  <path class="gnd" d="M940,280 V300"/>
+  <path class="gnd" d="M928,300 H952 M932,306 H948 M936,312 H944"/>
+
+  <!-- contacts -->
+  <path d="M954,180 H1010" stroke="#64748b" stroke-dasharray="4 4"/>
+  <text x="1002" y="318" class="pin" font-size="10" text-anchor="end">COM</text>
+  <text x="1040" y="378" class="pin" font-size="10" text-anchor="middle">NO</text>
+  <text x="1048" y="264" class="pin" font-size="10">NC</text>
+  <circle cx="1010" cy="300" r="4" fill="#dc2626"/>
+  <path class="L" d="M1010,300 L1036,268"/>
+  <circle cx="1040" cy="268" r="3" fill="none" stroke="#334155"/>
+  <circle cx="1040" cy="352" r="4" fill="#dc2626"/>
+  <path d="M1010,180 V292" stroke="#64748b" stroke-dasharray="4 4"/>
+  <text x="980" y="336" class="s" text-anchor="end">energised → COM↔NO</text>
+
+  <!-- mains side of relay -->
+  <path class="L" d="M1010,300 H1060"/>
+  <path class="L" d="M1060,300 H1100"/>
+  <rect x="1100" y="290" width="44" height="20" class="box" rx="3"/>
+  <text x="1122" y="304" class="pin" text-anchor="middle">F2</text>
+  <text x="1122" y="284" class="s" text-anchor="middle">10 A</text>
+  <path class="L" d="M1144,300 H1236"/>
+  <text x="1242" y="305" fill="#dc2626" font-weight="700">L</text>
+
+  <path class="L" d="M1040,352 H1150"/>
+  <circle cx="1170" cy="352" r="20" fill="#fef9c3" stroke="#334155"/>
+  <path d="M1156,338 L1184,366 M1184,338 L1156,366" stroke="#334155" stroke-width="1.5"/>
+  <text x="1170" y="392" class="s" text-anchor="middle">LOAD 1</text>
+  <path class="N" d="M1190,352 H1236"/>
+  <text x="1242" y="357" fill="#2563eb" font-weight="700">N</text>
+
+  <!-- notes B -->
+  <text x="668" y="452" class="h">Rules for the relay side</text>
+  <g class="s">
+    <text x="668" y="476">• <tspan font-weight="700" fill="#0f172a">Remove the JD-VCC ↔ VCC jumper.</tspan> VCC = 3V3 from the ESP32 (opto side), JD-VCC = 5 V (coils).</text>
+    <text x="668" y="496">  With VCC at 3.3 V the opto turns fully OFF when the GPIO is HIGH (no ghost-glow / chatter).</text>
+    <text x="668" y="516">• Active-LOW: GPIO LOW = relay ON. Firmware writes HIGH before enabling the pin as output,</text>
+    <text x="668" y="536">  so relays stay OFF during boot (GPIO18–23 have no boot-time pulses).</text>
+    <text x="668" y="556">• Contacts rated 10 A: lights, fans, sockets OK. NOT for AC / geyser / motor-pump → 16–30 A relay or contactor.</text>
+    <text x="668" y="576">• Restore after power cut: relays switched one at a time, 150 ms apart (limits inrush).</text>
+  </g>
+  <text x="668" y="612" class="h">Power budget (5 V rail)</text>
+  <g class="pin" font-size="11.5">
+    <text x="668" y="634">6 coils × 72 mA        = 432 mA</text>
+    <text x="668" y="652">ESP32-C6 peak (Wi-Fi)  ≈ 350 mA</text>
+    <text x="668" y="670">Total ≈ 0.8 A ≈ 4 W  →  HLK-10M05 (2 A) gives 2.5× headroom</text>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+# Local hub services. Phase 1: the broker runs in Docker, backend + dashboard run on the host (pnpm dev).
+# Zigbee2MQTT and a containerised backend are added in phase 2.
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: sw6-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data

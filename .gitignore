@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.env
+*.db
+*.db-journal
+hub/mosquitto/data/
+hub/mosquitto/log/
+.playwright-mcp/
+.DS_Store

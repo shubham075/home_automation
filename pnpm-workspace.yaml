@@ -1,0 +1,11 @@
+packages:
+  - packages/*
+  - hub/backend
+  - hub/dashboard
+  - tools/*
+
+allowBuilds:
+  prisma: true
+  "@prisma/client": true
+  "@prisma/engines": true
+  esbuild: true

@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 900" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13">
+  <title>SW6 prototype — system wiring overview</title>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#fecaca" stroke-width="4"/>
+    </pattern>
+  </defs>
+  <style>
+    .box{fill:#ffffff;stroke:#334155;stroke-width:1.5}
+    .mod{fill:#f8fafc;stroke:#334155;stroke-width:1.5}
+    .esp{fill:#eef2ff;stroke:#4338ca;stroke-width:2}
+    .h{font-weight:700;font-size:14px;fill:#0f172a}
+    .t{fill:#334155}
+    .s{fill:#64748b;font-size:11px}
+    .pin{fill:#0f172a;font-size:12px;font-family:Consolas, Menlo, monospace}
+    .L{stroke:#dc2626;stroke-width:2.5;fill:none}
+    .N{stroke:#2563eb;stroke-width:2.5;fill:none}
+    .sw{stroke:#ea580c;stroke-width:2;fill:none}
+    .v5{stroke:#b91c1c;stroke-width:2;fill:none;stroke-dasharray:0}
+    .v33{stroke:#d97706;stroke-width:2;fill:none}
+    .gnd{stroke:#0f172a;stroke-width:2;fill:none}
+    .sig{stroke:#16a34a;stroke-width:2;fill:none}
+    .bus{stroke:#16a34a;stroke-width:5;fill:none}
+    .i2c{stroke:#7c3aed;stroke-width:2;fill:none}
+  </style>
+
+  <rect width="1280" height="900" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="24" y="34" font-size="20" font-weight="700" fill="#0f172a">SW6 prototype — system wiring overview</text>
+  <text x="24" y="56" class="s">ESP32-C6 DevKitC-1 · 6 relay outputs · 6 isolated wall-switch inputs · HLK-10M05 supply · rev proto-a · verify every pin against the board silkscreen before powering</text>
+
+  <!-- zones -->
+  <rect x="16" y="72" width="600" height="812" fill="url(#hatch)" opacity="0.35"/>
+  <rect x="16" y="72" width="600" height="812" fill="none" stroke="#dc2626" stroke-width="1.5" rx="8"/>
+  <text x="30" y="96" font-weight="700" fill="#b91c1c">⚠ 230 V AC ZONE — HAZARDOUS (work only with plug removed)</text>
+  <rect x="664" y="72" width="600" height="812" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5" rx="8"/>
+  <text x="678" y="96" font-weight="700" fill="#15803d">LOW-VOLTAGE ZONE — 5 V / 3.3 V DC</text>
+  <line x1="640" y1="72" x2="640" y2="884" stroke="#0f172a" stroke-width="2" stroke-dasharray="8 6"/>
+  <rect x="540" y="216" width="200" height="20" fill="#ffffff" stroke="#0f172a" rx="10"/>
+  <text x="640" y="230" class="s" text-anchor="middle" fill="#0f172a">isolation barrier · ≥ 6 mm creepage</text>
+
+  <!-- MAINS IN -->
+  <rect x="36" y="118" width="120" height="64" class="box" rx="6"/>
+  <text x="96" y="140" class="h" text-anchor="middle">MAINS IN</text>
+  <text x="96" y="158" class="t" text-anchor="middle">230 V · 50 Hz</text>
+  <text x="96" y="174" class="s" text-anchor="middle">plug / DB feed</text>
+
+  <!-- MCB -->
+  <rect x="196" y="118" width="96" height="64" class="box" rx="6"/>
+  <text x="244" y="142" class="h" text-anchor="middle">MCB</text>
+  <text x="244" y="160" class="t" text-anchor="middle">6 A, C-curve</text>
+  <path class="L" d="M156,138 H196"/>
+  <path class="N" d="M156,164 H196"/>
+
+  <!-- L and N buses -->
+  <path class="L" d="M292,138 H330 V760"/>
+  <text x="336" y="214" fill="#dc2626" font-weight="700">L bus</text>
+  <path class="N" d="M292,164 H316 V176 H600"/>
+  <path class="N" d="M60,176 V840 H316 V176"/>
+  <text x="66" y="830" fill="#2563eb" font-weight="700">N bus</text>
+
+  <!-- F1 + MOV + HLK -->
+  <path class="L" d="M330,138 H390"/>
+  <rect x="390" y="128" width="44" height="20" class="box" rx="3"/>
+  <text x="412" y="142" class="pin" text-anchor="middle">F1</text>
+  <text x="412" y="122" class="s" text-anchor="middle">1 A slow</text>
+  <path class="L" d="M434,138 H560"/>
+  <!-- MOV -->
+  <rect x="470" y="146" width="40" height="18" fill="#fde68a" stroke="#334155" rx="3"/>
+  <text x="490" y="159" class="pin" text-anchor="middle" font-size="10">MOV</text>
+  <path class="L" d="M480,138 V146"/>
+  <path class="N" d="M500,164 V176"/>
+  <text x="490" y="194" class="s" text-anchor="middle">14D471K</text>
+
+  <rect x="560" y="116" width="160" height="80" class="mod" rx="6"/>
+  <text x="640" y="140" class="h" text-anchor="middle">HLK-10M05</text>
+  <text x="640" y="157" class="t" text-anchor="middle">230 VAC → 5 V · 2 A</text>
+  <text x="640" y="174" class="s" text-anchor="middle">isolated module</text>
+  <text x="566" y="190" class="pin" font-size="10">AC-L AC-N</text>
+  <path class="N" d="M600,176 V196"/>
+  <text x="712" y="190" class="pin" font-size="10" text-anchor="end">+5V GND</text>
+
+  <!-- 5V and GND rails in LV zone -->
+  <path class="v5" d="M720,140 H1240"/>
+  <text x="1000" y="134" fill="#b91c1c" font-weight="700">+5 V rail</text>
+  <path class="gnd" d="M720,170 H1220 V870 H700"/>
+  <text x="1000" y="164" fill="#0f172a" font-weight="700">GND rail</text>
+
+  <!-- RELAY MODULE straddling barrier -->
+  <rect x="470" y="250" width="340" height="300" class="mod" rx="8"/>
+  <text x="640" y="274" class="h" text-anchor="middle">8-ch relay module (use CH1–CH6)</text>
+  <text x="640" y="291" class="s" text-anchor="middle">optocoupled · active-LOW · SRD-05VDC · 10 A / 250 VAC contacts</text>
+  <!-- contacts side -->
+  <text x="482" y="318" class="pin">COM1–6</text>
+  <text x="482" y="400" class="pin">NO1–6</text>
+  <text x="482" y="480" class="pin">NC (unused)</text>
+  <!-- LV side -->
+  <text x="798" y="318" class="pin" text-anchor="end">JD-VCC</text>
+  <text x="798" y="346" class="pin" text-anchor="end">VCC</text>
+  <text x="798" y="374" class="pin" text-anchor="end">GND</text>
+  <text x="798" y="430" class="pin" text-anchor="end">IN1–IN6</text>
+  <text x="640" y="530" class="s" text-anchor="middle">REMOVE the JD-VCC↔VCC jumper</text>
+
+  <!-- L to COMs via F2 -->
+  <path class="L" d="M330,314 H392"/>
+  <rect x="392" y="304" width="44" height="20" class="box" rx="3"/>
+  <text x="414" y="318" class="pin" text-anchor="middle">F2</text>
+  <text x="414" y="298" class="s" text-anchor="middle">10 A</text>
+  <path class="L" d="M436,314 H478"/>
+
+  <!-- loads -->
+  <g>
+    <rect x="96" y="300" width="190" height="210" class="box" rx="6"/>
+    <text x="191" y="322" class="h" text-anchor="middle">LOADS × 6</text>
+    <text x="191" y="340" class="s" text-anchor="middle">test rig: 9 W LED bulbs</text>
+    <g class="t" font-size="12">
+      <circle cx="130" cy="372" r="12" fill="#fef9c3" stroke="#334155"/><text x="150" y="376">L1 Ceiling light</text>
+      <circle cx="130" cy="402" r="12" fill="#fef9c3" stroke="#334155"/><text x="150" y="406">L2 Fan</text>
+      <circle cx="130" cy="432" r="12" fill="#fef9c3" stroke="#334155"/><text x="150" y="436">L3 Wall light</text>
+      <circle cx="130" cy="462" r="12" fill="#fef9c3" stroke="#334155"/><text x="150" y="466">L4 Socket</text>
+      <circle cx="130" cy="492" r="12" fill="#fef9c3" stroke="#334155"/><text x="150" y="496">L5 / L6 …</text>
+    </g>
+  </g>
+  <path class="L" d="M478,396 H300"/>
+  <line x1="384" y1="388" x2="392" y2="404" stroke="#dc2626" stroke-width="2"/>
+  <text x="396" y="388" fill="#dc2626" font-size="11">×6 (NOx → load x)</text>
+  <path class="N" d="M96,470 H60"/>
+  <text x="66" y="462" class="s">loads → N</text>
+
+  <!-- PC817 input board -->
+  <rect x="470" y="600" width="340" height="190" class="mod" rx="8"/>
+  <text x="640" y="624" class="h" text-anchor="middle">6× mains-sense input (PC817)</text>
+  <text x="640" y="641" class="s" text-anchor="middle">per channel: 2× 100 kΩ ½ W + 1N4007 anti-parallel · 10 kΩ pull-up</text>
+  <text x="482" y="676" class="pin">S1–S6 in</text>
+  <text x="482" y="740" class="pin">N</text>
+  <text x="798" y="676" class="pin" text-anchor="end">OUT1–6</text>
+  <text x="798" y="704" class="pin" text-anchor="end">3V3</text>
+  <text x="798" y="732" class="pin" text-anchor="end">GND</text>
+  <text x="640" y="776" class="s" text-anchor="middle">see detail sheet for one channel</text>
+
+  <!-- wall switches -->
+  <rect x="96" y="610" width="190" height="130" class="box" rx="6"/>
+  <text x="191" y="632" class="h" text-anchor="middle">EXISTING WALL SWITCHES</text>
+  <text x="191" y="650" class="s" text-anchor="middle">S1–S6 (Anchor / Havells modular)</text>
+  <g class="sw">
+    <path d="M330,690 H300"/>
+    <circle cx="140" cy="690" r="4" fill="#ea580c"/>
+    <path d="M144,690 L176,676"/>
+    <circle cx="180" cy="690" r="4" fill="#ea580c"/>
+  </g>
+  <path class="L" d="M330,690 H286"/>
+  <path class="sw" d="M136,690 H110 V720 H286"/>
+  <text x="200" y="714" class="s">switched leg ×6</text>
+  <path class="sw" d="M286,720 H400 V672 H478"/>
+  <line x1="420" y1="664" x2="428" y2="680" stroke="#ea580c" stroke-width="2"/>
+  <text x="432" y="662" fill="#ea580c" font-size="11">×6</text>
+  <path class="N" d="M478,736 H316"/>
+
+  <!-- ESP32-C6 DevKitC-1 -->
+  <rect x="930" y="250" width="200" height="560" class="esp" rx="10"/>
+  <text x="1030" y="276" class="h" text-anchor="middle" fill="#3730a3">ESP32-C6</text>
+  <text x="1030" y="293" class="t" text-anchor="middle">DevKitC-1</text>
+  <rect x="1000" y="782" width="60" height="22" fill="#c7d2fe" stroke="#4338ca" rx="4"/>
+  <text x="1030" y="798" class="pin" text-anchor="middle" font-size="10">USB-C</text>
+  <!-- left pins -->
+  <g class="pin">
+    <text x="940" y="320">5V</text>
+    <text x="940" y="346">3V3</text>
+    <text x="940" y="372">GND</text>
+    <text x="940" y="410">GPIO18 → IN1</text>
+    <text x="940" y="428">GPIO19 → IN2</text>
+    <text x="940" y="446">GPIO20 → IN3</text>
+    <text x="940" y="464">GPIO21 → IN4</text>
+    <text x="940" y="482">GPIO22 → IN5</text>
+    <text x="940" y="500">GPIO23 → IN6</text>
+    <text x="940" y="640">GPIO0 ← S1</text>
+    <text x="940" y="658">GPIO1 ← S2</text>
+    <text x="940" y="676">GPIO2 ← S3</text>
+    <text x="940" y="694">GPIO3 ← S4</text>
+    <text x="940" y="712">GPIO6 ← S5</text>
+    <text x="940" y="730">GPIO7 ← S6</text>
+  </g>
+  <!-- right pins -->
+  <g class="pin" text-anchor="end">
+    <text x="1122" y="410">GPIO10 SDA</text>
+    <text x="1122" y="428">GPIO11 SCL</text>
+    <text x="1122" y="482">GPIO4 PIR</text>
+    <text x="1122" y="560">GPIO8 RGB LED</text>
+    <text x="1122" y="576" class="s">(on board)</text>
+    <text x="1122" y="606">GPIO9 BOOT</text>
+    <text x="1122" y="622" class="s">(hold 10 s = reset)</text>
+  </g>
+
+  <!-- power to relay module + ESP -->
+  <path class="v5" d="M760,140 V300 H810"/>
+  <path class="v5" d="M760,300 H810" />
+  <path class="v5" d="M880,140 V316 H930"/>
+  <path class="v33" d="M930,342 H840 V342 H810"/>
+  <path class="gnd" d="M810,370 H900 V368 H930"/>
+  <path class="gnd" d="M900,370 V170"/>
+  <text x="815" y="296" fill="#b91c1c" font-size="11">5 V → coils</text>
+  <text x="840" y="358" fill="#d97706" font-size="11">3V3 → opto</text>
+
+  <!-- relay signal bus -->
+  <path class="bus" d="M930,455 H810"/>
+  <line x1="866" y1="444" x2="874" y2="466" stroke="#16a34a" stroke-width="2"/>
+  <text x="878" y="446" fill="#16a34a" font-size="11">6</text>
+  <text x="820" y="476" fill="#16a34a" font-size="11">LOW = relay ON</text>
+
+  <!-- input bus -->
+  <path class="bus" d="M810,672 H890 V685 H930"/>
+  <line x1="850" y1="662" x2="858" y2="684" stroke="#16a34a" stroke-width="2"/>
+  <text x="862" y="664" fill="#16a34a" font-size="11">6</text>
+  <path class="v33" d="M810,700 H840 V342"/>
+  <path class="gnd" d="M810,728 H900 V370"/>
+
+  <!-- sensors -->
+  <rect x="1150" y="380" width="96" height="60" class="box" rx="6"/>
+  <text x="1198" y="404" class="h" text-anchor="middle">AHT20</text>
+  <text x="1198" y="422" class="s" text-anchor="middle">temp / RH · I²C</text>
+  <path class="i2c" d="M1130,405 H1150"/>
+  <path class="i2c" d="M1130,423 H1150"/>
+  <rect x="1150" y="460" width="96" height="60" class="box" rx="6"/>
+  <text x="1198" y="484" class="h" text-anchor="middle">AM312</text>
+  <text x="1198" y="502" class="s" text-anchor="middle">PIR · 3.3 V</text>
+  <path class="sig" d="M1130,478 H1150"/>
+  <text x="1246" y="540" class="s" text-anchor="end">sensors powered</text>
+  <text x="1246" y="554" class="s" text-anchor="end">from 3V3 + GND</text>
+
+  <!-- legend -->
+  <g transform="translate(680,820)">
+    <text x="0" y="0" class="h">Legend</text>
+    <line x1="0" y1="16" x2="30" y2="16" class="L"/><text x="36" y="20" class="s">Live (L)</text>
+    <line x1="100" y1="16" x2="130" y2="16" class="N"/><text x="136" y="20" class="s">Neutral (N)</text>
+    <line x1="220" y1="16" x2="250" y2="16" class="sw"/><text x="256" y="20" class="s">Switched leg</text>
+    <line x1="350" y1="16" x2="380" y2="16" class="v5"/><text x="386" y="20" class="s">+5 V</text>
+    <line x1="0" y1="40" x2="30" y2="40" class="v33"/><text x="36" y="44" class="s">+3.3 V</text>
+    <line x1="100" y1="40" x2="130" y2="40" class="gnd"/><text x="136" y="44" class="s">GND</text>
+    <line x1="220" y1="40" x2="250" y2="40" class="sig"/><text x="256" y="44" class="s">GPIO signal</text>
+    <line x1="350" y1="40" x2="380" y2="40" class="i2c"/><text x="386" y="44" class="s">I²C</text>
+  </g>
+</svg>

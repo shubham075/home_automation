@@ -1,0 +1,21 @@
+{
+  "name": "sw6-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "hub:up": "docker compose -f hub/docker-compose.yml up -d",
+    "hub:down": "docker compose -f hub/docker-compose.yml down",
+    "db:setup": "pnpm --filter @sw6/backend db:setup",
+    "dev": "concurrently -n backend,dashboard -c blue,magenta \"pnpm --filter @sw6/backend dev\" \"pnpm --filter @sw6/dashboard dev\"",
+    "sim": "pnpm --filter @sw6/device-simulator start",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.3"
+  }
+}

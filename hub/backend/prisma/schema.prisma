@@ -1,0 +1,460 @@
+// Mirrors docs/03-er-model.md. SQLite on the hub now, Postgres in the cloud phase.
+// Enum-like columns are strings; allowed values are listed in docs/03-er-model.md section 6.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Tenancy & identity ----------
+
+model Organization {
+  id               String            @id @default(ulid())
+  name             String
+  type             String // platform | partner | installer
+  parentOrgId      String?
+  parent           Organization?     @relation("OrgTree", fields: [parentOrgId], references: [id])
+  children         Organization[]    @relation("OrgTree")
+  gstin            String?
+  phone            String?
+  email            String?
+  city             String?
+  state            String?
+  status           String            @default("active")
+  members          OrgMembership[]
+  sites            Site[]
+  installationJobs InstallationJob[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model User {
+  id                  String               @id @default(ulid())
+  name                String
+  phone               String               @unique
+  email               String?              @unique
+  passwordHash        String?
+  phoneVerified       Boolean              @default(false)
+  locale              String               @default("en")
+  status              String               @default("active")
+  lastLoginAt         DateTime?
+  orgMemberships      OrgMembership[]
+  siteMemberships     SiteMembership[]
+  invitationsSent     Invitation[]
+  refreshTokens       RefreshToken[]
+  webauthnCredentials WebauthnCredential[]
+  pushTokens          PushToken[]
+  claimedDevices      Device[]
+  stateChanges        EndpointState[]
+  commands            Command[]
+  automations         Automation[]
+  notifications       Notification[]
+  otaJobs             OtaJob[]
+  installationJobs    InstallationJob[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model OrgMembership {
+  id        String       @id @default(ulid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  role      String // org_owner | org_admin | technician | support
+  createdAt DateTime     @default(now())
+
+  @@unique([orgId, userId])
+}
+
+model Site {
+  id               String            @id @default(ulid())
+  orgId            String
+  org              Organization      @relation(fields: [orgId], references: [id])
+  name             String
+  type             String // apartment | independent_house | villa | office | hotel | retail | other
+  addressLine      String?
+  city             String?
+  state            String?
+  pincode          String?
+  lat              Float?
+  lng              Float?
+  timezone         String            @default("Asia/Kolkata")
+  status           String            @default("draft")
+  cloudSyncEnabled Boolean           @default(false)
+  memberships      SiteMembership[]
+  invitations      Invitation[]
+  floors           Floor[]
+  rooms            Room[]
+  hubs             Hub[]
+  devices          Device[]
+  commands         Command[]
+  scenes           Scene[]
+  automations      Automation[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  installationJobs InstallationJob[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model SiteMembership {
+  id         String    @id @default(ulid())
+  siteId     String
+  site       Site      @relation(fields: [siteId], references: [id])
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  role       String // owner | admin | member | guest
+  validFrom  DateTime?
+  validUntil DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([siteId, userId])
+}
+
+model Invitation {
+  id           String    @id @default(ulid())
+  siteId       String
+  site         Site      @relation(fields: [siteId], references: [id])
+  invitedById  String
+  invitedBy    User      @relation(fields: [invitedById], references: [id])
+  phoneOrEmail String
+  role         String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model RefreshToken {
+  id         String    @id @default(ulid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  tokenHash  String    @unique
+  clientInfo String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model WebauthnCredential {
+  id         String    @id // credential id, base64url
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  publicKey  String
+  signCount  Int       @default(0)
+  transports String?
+  label      String?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model PushToken {
+  id        String   @id @default(ulid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  platform  String // android | ios | web
+  token     String   @unique
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Topology & devices ----------
+
+model Floor {
+  id        String @id @default(ulid())
+  siteId    String
+  site      Site   @relation(fields: [siteId], references: [id])
+  name      String
+  level     Int    @default(0)
+  sortOrder Int    @default(0)
+  rooms     Room[]
+}
+
+model Room {
+  id        String     @id @default(ulid())
+  siteId    String
+  site      Site       @relation(fields: [siteId], references: [id])
+  floorId   String?
+  floor     Floor?     @relation(fields: [floorId], references: [id])
+  name      String
+  type      String     @default("other")
+  icon      String?
+  sortOrder Int        @default(0)
+  endpoints Endpoint[]
+  scenes    Scene[]
+}
+
+model Hub {
+  id           String    @id @default(ulid())
+  siteId       String
+  site         Site      @relation(fields: [siteId], references: [id])
+  serial       String    @unique
+  hostname     String?
+  swVersion    String?
+  status       String    @default("offline")
+  lastSeenAt   DateTime?
+  cloudAgentId String?
+  devices      Device[]
+}
+
+model DeviceModel {
+  id               String            @id @default(ulid())
+  sku              String            @unique
+  name             String
+  category         String // switch | dimmer | fan | plug | sensor | ir | curtain | lock
+  protocol         String // wifi | zigbee | thread | matter
+  channelCount     Int
+  capabilities     Json
+  manufacturer     String            @default("own")
+  devices          Device[]
+  firmwareReleases FirmwareRelease[]
+}
+
+model Device {
+  id               String             @id // e.g. sw6-a1b2c3d4e5f6
+  siteId           String?
+  site             Site?              @relation(fields: [siteId], references: [id])
+  hubId            String?
+  hub              Hub?               @relation(fields: [hubId], references: [id])
+  modelId          String
+  model            DeviceModel        @relation(fields: [modelId], references: [id])
+  name             String
+  mac              String?            @unique
+  ieeeAddr         String?            @unique
+  fwVersion        String?
+  hwRevision       String?
+  status           String             @default("unclaimed")
+  configRevDesired Int                @default(0)
+  configRevApplied Int                @default(0)
+  ipAddress        String?
+  rssi             Int?
+  lastSeenAt       DateTime?
+  claimedAt        DateTime?
+  claimedById      String?
+  claimedBy        User?              @relation(fields: [claimedById], references: [id])
+  deletedAt        DateTime?
+  credentials      DeviceCredential[]
+  endpoints        Endpoint[]
+  otaJobs          OtaJob[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([siteId, status])
+}
+
+model DeviceCredential {
+  id         String    @id @default(ulid())
+  deviceId   String
+  device     Device    @relation(fields: [deviceId], references: [id])
+  type       String // mqtt_password | x509
+  secretHash String
+  issuedAt   DateTime  @default(now())
+  revokedAt  DateTime?
+}
+
+model Endpoint {
+  id            String         @id @default(ulid())
+  deviceId      String
+  device        Device         @relation(fields: [deviceId], references: [id])
+  roomId        String?
+  room          Room?          @relation(fields: [roomId], references: [id])
+  channel       Int
+  kind          String // relay | dimmer | fan_speed | input | temperature | humidity | motion | contact | power
+  name          String
+  loadType      String         @default("other")
+  ratedWatts    Int?
+  restorePolicy String         @default("last")
+  inputMode     String         @default("toggle")
+  favorite      Boolean        @default(false)
+  hidden        Boolean        @default(false)
+  state         EndpointState?
+  telemetry     Telemetry[]
+  commands      Command[]
+  sceneActions  SceneAction[]
+
+  @@unique([deviceId, channel, kind])
+  @@index([roomId])
+}
+
+model EndpointState {
+  endpointId  String   @id
+  endpoint    Endpoint @relation(fields: [endpointId], references: [id])
+  value       Json
+  source      String // physical | app | automation | scene | schedule | voice | restore | api
+  changedById String?
+  changedBy   User?    @relation(fields: [changedById], references: [id])
+  changedAt   DateTime
+  deviceSeq   Int?
+}
+
+model Telemetry {
+  id         Int      @id @default(autoincrement())
+  endpointId String
+  endpoint   Endpoint @relation(fields: [endpointId], references: [id])
+  ts         DateTime
+  metric     String
+  value      Float
+
+  @@index([endpointId, ts])
+}
+
+// ---------- Control & automation ----------
+
+model Command {
+  id              String         @id // = cid on the wire
+  siteId          String
+  site            Site           @relation(fields: [siteId], references: [id])
+  endpointId      String
+  endpoint        Endpoint       @relation(fields: [endpointId], references: [id])
+  requestedById   String?
+  requestedBy     User?          @relation(fields: [requestedById], references: [id])
+  source          String // app | automation | scene | schedule | voice | api
+  automationRunId String?
+  automationRun   AutomationRun? @relation(fields: [automationRunId], references: [id])
+  payload         Json
+  status          String         @default("pending") // pending | sent | acked | failed | timeout
+  attempts        Int            @default(0)
+  errorCode       String?
+  createdAt       DateTime       @default(now())
+  sentAt          DateTime?
+  ackedAt         DateTime?
+
+  @@index([endpointId, createdAt])
+  @@index([status])
+}
+
+model Scene {
+  id        String        @id @default(ulid())
+  siteId    String
+  site      Site          @relation(fields: [siteId], references: [id])
+  roomId    String?
+  room      Room?         @relation(fields: [roomId], references: [id])
+  name      String
+  icon      String?
+  sortOrder Int           @default(0)
+  actions   SceneAction[]
+}
+
+model SceneAction {
+  id         String   @id @default(ulid())
+  sceneId    String
+  scene      Scene    @relation(fields: [sceneId], references: [id])
+  endpointId String
+  endpoint   Endpoint @relation(fields: [endpointId], references: [id])
+  target     Json
+  delayMs    Int      @default(0)
+}
+
+model Automation {
+  id          String          @id @default(ulid())
+  siteId      String
+  site        Site            @relation(fields: [siteId], references: [id])
+  name        String
+  enabled     Boolean         @default(true)
+  trigger     Json
+  conditions  Json
+  actions     Json
+  cooldownSec Int             @default(0)
+  createdById String?
+  createdBy   User?           @relation(fields: [createdById], references: [id])
+  lastRunAt   DateTime?
+  runs        AutomationRun[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model AutomationRun {
+  id              String     @id @default(ulid())
+  automationId    String
+  automation      Automation @relation(fields: [automationId], references: [id])
+  startedAt       DateTime   @default(now())
+  triggerSnapshot String?
+  result          String // success | partial | failed | skipped_condition | skipped_cooldown
+  detail          String?
+  commands        Command[]
+}
+
+model Notification {
+  id        String    @id @default(ulid())
+  siteId    String
+  site      Site      @relation(fields: [siteId], references: [id])
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// ---------- Operations ----------
+
+model FirmwareRelease {
+  id            String      @id @default(ulid())
+  modelId       String
+  model         DeviceModel @relation(fields: [modelId], references: [id])
+  version       String
+  channel       String // dev | beta | stable
+  filePath      String
+  sizeBytes     Int
+  sha256        String
+  signature     String
+  minHwRevision String?
+  releaseNotes  String?
+  publishedAt   DateTime?
+  otaJobs       OtaJob[]
+
+  @@unique([modelId, version])
+}
+
+model OtaJob {
+  id            String          @id @default(ulid())
+  deviceId      String
+  device        Device          @relation(fields: [deviceId], references: [id])
+  releaseId     String
+  release       FirmwareRelease @relation(fields: [releaseId], references: [id])
+  requestedById String?
+  requestedBy   User?           @relation(fields: [requestedById], references: [id])
+  status        String          @default("queued")
+  progressPct   Int             @default(0)
+  fromVersion   String?
+  error         String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+}
+
+model AuditLog {
+  id         String   @id @default(ulid())
+  siteId     String?
+  site       Site?    @relation(fields: [siteId], references: [id])
+  actorType  String // user | device | automation | system
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  data       Json?
+  ip         String?
+  ts         DateTime @default(now())
+
+  @@index([siteId, ts])
+}
+
+model InstallationJob {
+  id           String       @id @default(ulid())
+  siteId       String
+  site         Site         @relation(fields: [siteId], references: [id])
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
+  technicianId String?
+  technician   User?        @relation(fields: [technicianId], references: [id])
+  type         String // survey | install | service | uninstall
+  status       String       @default("scheduled")
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  checklist    Json?
+  notes        String?
+}
