@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "hub:up": "docker compose -f hub/docker-compose.yml up -d",
+    "hub:up": "node hub/scripts/init-broker.mjs && docker compose -f hub/docker-compose.yml up -d --force-recreate",
     "hub:down": "docker compose -f hub/docker-compose.yml down",
     "db:setup": "pnpm --filter @sw6/backend db:setup",
     "dev": "concurrently -n backend,dashboard -c blue,magenta \"pnpm --filter @sw6/backend dev\" \"pnpm --filter @sw6/dashboard dev\"",

@@ -23,8 +23,8 @@ Needs Node 22+, pnpm, Docker.
 ```bash
 pnpm install
 cp hub/backend/.env.example hub/backend/.env
-pnpm hub:up        # Mosquitto on :1883
-pnpm db:setup      # create SQLite DB + seed demo site and admin
+pnpm hub:up        # Mosquitto on :1883 (creates broker admin login on first run)
+pnpm db:setup      # apply migrations + seed demo site and admin
 pnpm dev           # backend :8080 + dashboard :5173
 ```
 
@@ -36,12 +36,17 @@ pnpm sim --count 2
 
 Open http://localhost:5173 and sign in with the seed admin from `hub/backend/.env` (`SEED_ADMIN_PHONE` / `SEED_ADMIN_PASSWORD`). Two simulated boards appear with 6 channels each.
 
+Each simulated board bootstraps its own broker login on first run (stored in `tools/device-simulator/.sim-creds.json`; `pnpm sim --reset` forgets them).
+
 Simulator keys: `1`–`6` flip a wall switch, `o` drops the device offline / reconnects, `Tab` switches device, `s` prints status, `q` quits.
 
 Try it from your phone: open `http://<laptop-ip>:5173` on the same Wi-Fi.
 
 ## Status
 
-Working end to end: login (JWT), site access control, device auto-registration (dev), app command → MQTT → device ack with retry/timeout, wall-switch changes pushed live to every open app, offline detection via MQTT Last Will.
+Working end to end:
+- Auth: 15-min access tokens, rotating refresh tokens with reuse detection (httpOnly cookie on web, body for native), logout, per-IP rate limit + per-account lockout, site access control
+- Broker: anonymous refused, per-device logins locked to client id and own topics (Mosquitto Dynamic Security), bootstrap flow that issues each board its own password
+- Devices: app command → MQTT → device ack with retry/timeout, wall-switch changes pushed live to every open app, offline detection via Last Will
 
-Not yet: refresh tokens, BLE claim flow, scenes/automations engine, OTA, TLS on the broker, Zigbee2MQTT, firmware, Capacitor app.
+Not yet: TLS on the broker (before pilot), BLE claim flow (dev auto-approves into a site), scenes/automations engine, OTA, Zigbee2MQTT, firmware, Capacitor app.

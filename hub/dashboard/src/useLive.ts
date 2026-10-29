@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { EndpointView, ServerMessage } from '@sw6/protocol';
-import { getToken } from './api';
+import { getAccessToken, refreshSession } from './api';
 
 type CommandResult = Extract<ServerMessage, { type: 'command.result' }>;
 
@@ -25,7 +25,7 @@ export function useLive(siteId: string | undefined, onCommandResult: (r: Command
 
     const open = () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(getToken() ?? '')}`);
+      ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(getAccessToken() ?? '')}`);
       ws.onopen = () => {
         retry = 0;
         setConnected(true);
@@ -46,10 +46,12 @@ export function useLive(siteId: string | undefined, onCommandResult: (r: Command
           onResult.current(msg);
         }
       };
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         setConnected(false);
         if (closed) return;
-        timer = window.setTimeout(open, Math.min(30_000, 1000 * 2 ** retry++));
+        const delay = Math.min(30_000, 1000 * 2 ** retry++);
+        // 4401: the access token expired while we were disconnected; get a fresh one first.
+        timer = window.setTimeout(() => (e.code === 4401 ? refreshSession().then((ok) => ok && open()) : open()), delay);
       };
     };
     open();

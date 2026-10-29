@@ -1,11 +1,25 @@
 // A fake SW6 that follows the same MQTT contract as the firmware will.
 import mqtt, { type MqttClient } from 'mqtt';
-import { Cmd, devTopic, type CmdAck, type Leaf, type Meta, type State } from '@sw6/protocol';
+import {
+  Cmd,
+  Creds,
+  bootstrapTopic,
+  devTopic,
+  deviceIdFor,
+  type CmdAck,
+  type Hello,
+  type Leaf,
+  type Meta,
+  type State,
+} from '@sw6/protocol';
+import type { CredsStore } from './creds-store';
 
 const CHANNELS = 6;
+const HELLO_RETRY_MS = 35_000; // a little longer than the hub's per-device cooldown
 
 export class SimDevice {
   readonly id: string;
+  private siteId = '';
   private client: MqttClient | null = null;
   private relays: boolean[] = Array(CHANNELS).fill(false);
   private seq = 0;
@@ -15,11 +29,12 @@ export class SimDevice {
 
   constructor(
     private readonly url: string,
-    private readonly siteId: string,
     readonly mac: string,
+    private readonly bootstrapPassword: string,
+    private readonly store: CredsStore,
     private readonly log: (msg: string) => void,
   ) {
-    this.id = `sw6-${mac.replaceAll(':', '')}`;
+    this.id = deviceIdFor('SW6', mac);
   }
 
   get online() {
@@ -30,14 +45,67 @@ export class SimDevice {
     return [...this.relays];
   }
 
+  /** Like firmware boot: use stored credentials if we have them, otherwise bootstrap. */
   connect() {
+    const creds = this.store.get(this.id);
+    if (creds) this.connectAsDevice(creds);
+    else this.bootstrap();
+  }
+
+  /** Shared "bootstrap" login: announce ourselves, wait for our own credentials. */
+  private bootstrap() {
+    this.log(`${this.id} has no credentials, bootstrapping`);
+    const client = mqtt.connect(this.url, {
+      clientId: this.id,
+      username: 'bootstrap',
+      password: this.bootstrapPassword,
+      clean: true,
+      reconnectPeriod: 5000,
+    });
+    this.client = client;
+    let helloTimer: NodeJS.Timeout | undefined;
+    const sayHello = () => {
+      const hello: Hello = { v: 1, model: 'SW6', mac: this.mac, fw: '0.1.0-sim', ts: Date.now() };
+      client.publish(bootstrapTopic(this.id, 'hello'), JSON.stringify(hello), { qos: 1 });
+    };
+    client.on('connect', () => {
+      client.subscribe(bootstrapTopic(this.id, 'creds'), { qos: 1 }, () => {
+        sayHello();
+        clearInterval(helloTimer);
+        helloTimer = setInterval(sayHello, HELLO_RETRY_MS);
+      });
+    });
+    client.on('message', (_t, buf) => {
+      const creds = Creds.safeParse(JSON.parse(buf.toString()));
+      if (!creds.success || creds.data.username !== this.id) return;
+      clearInterval(helloTimer);
+      this.store.set(this.id, creds.data);
+      this.log(`${this.id} received its own login for site "${creds.data.siteId}"`);
+      client.end(true, () => this.connectAsDevice(creds.data));
+    });
+    client.on('error', (err) => this.log(`${this.id} bootstrap error: ${err.message}`));
+  }
+
+  private connectAsDevice(creds: Creds) {
+    this.siteId = creds.siteId;
     const topic = (leaf: Leaf) => devTopic(this.siteId, this.id, leaf);
     this.client = mqtt.connect(this.url, {
       clientId: this.id,
+      username: creds.username,
+      password: creds.password,
       clean: false,
       keepalive: 30,
       reconnectPeriod: 1000,
       will: { topic: topic('status'), payload: Buffer.from('offline'), qos: 1, retain: true },
+    });
+    this.client.on('error', (err: Error & { code?: number }) => {
+      // 4 = bad username/password, 5 = not authorised (v3.1.1): our login was revoked or replaced.
+      if (err.code === 4 || err.code === 5) {
+        this.log(`${this.id} login rejected, discarding stored credentials`);
+        this.store.delete(this.id);
+        this.client?.end(true);
+        this.bootstrap();
+      }
     });
     this.client.on('connect', () => {
       this.log(`${this.id} connected`);

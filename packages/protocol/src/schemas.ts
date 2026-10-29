@@ -81,7 +81,28 @@ export const Telemetry = z.object({
   ts,
 });
 
+export const Hello = z.object({
+  v: v1,
+  model: z.string(),
+  mac: z.string().regex(/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/),
+  fw: z.string(),
+  ts,
+});
+
+export const Creds = z.object({
+  v: v1,
+  siteId: z.string(),
+  username: z.string(),
+  password: z.string(),
+  ts,
+});
+
+/** Device id is derived from model + MAC, so a board cannot claim another board's identity. */
+export const deviceIdFor = (model: string, mac: string) => `${model.toLowerCase()}-${mac.replaceAll(':', '')}`;
+
 export type Status = z.infer<typeof Status>;
+export type Hello = z.infer<typeof Hello>;
+export type Creds = z.infer<typeof Creds>;
 export type Meta = z.infer<typeof Meta>;
 export type State = z.infer<typeof State>;
 export type Cmd = z.infer<typeof Cmd>;

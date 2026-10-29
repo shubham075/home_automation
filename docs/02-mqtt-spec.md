@@ -161,23 +161,29 @@ Types: `input`, `boot` (with `reason`: power_on | watchdog | brownout | ota | sw
 - Physical inputs never wait on the network (principle P1).
 - Client id = `deviceId`; clean session = false (so QoS 1 commands queued during a short blip are delivered).
 
-## 5. Broker ACL (mosquitto `acl` file pattern)
+## 5. Broker authentication & ACL (Mosquitto Dynamic Security)
 
-```
-# devices: username == deviceId
-pattern readwrite ha/v1/+/dev/%u/#
-pattern read      ha/v1/+/hub/#
+Anonymous clients are refused. The backend manages every login and role live through the `$CONTROL/dynamic-security/v1` API (`hub/backend/src/dynsec.ts`), so adding a device never restarts the broker.
 
-# unclaimed devices (shared bootstrap user, very limited)
-user bootstrap
-topic write ha/v1/bootstrap/+/hello
-pattern read ha/v1/bootstrap/%c/creds
+| Login | Created by | Client id | Allowed |
+|---|---|---|---|
+| `hub-backend` | `pnpm hub:up` (first run) | any | `$CONTROL/dynamic-security/#`, publish + subscribe `ha/v1/#` |
+| `bootstrap` (shared) | backend on start | must equal the device id | publish `ha/v1/bootstrap/%c/hello`, subscribe `ha/v1/bootstrap/%c/creds` only |
+| `<deviceId>` (one per board) | backend when credentials are issued | locked to `<deviceId>` | publish + subscribe `ha/v1/{siteId}/dev/{deviceId}/#`, subscribe `ha/v1/{siteId}/hub/#` |
 
-# backend
-user hub-backend
-topic readwrite ha/v1/#
-topic readwrite zigbee2mqtt/#
-```
+`%c` is the connecting client id. A board using the shared bootstrap login can therefore only announce itself and only read its own credentials (verified: subscribing to another board's `creds` topic is denied).
+
+### Bootstrap sequence
+
+1. Board without stored credentials connects as `bootstrap` with client id = its device id (`sw6-<mac>`), clean session.
+2. Publishes `hello` `{v, model, mac, fw, ts}`. The hub checks `deviceId == model + mac`.
+3. Hub issues credentials: creates role `device:<id>` and client `<id>` with a random 192-bit password, stores only an Argon2 hash in `device_credential`, revokes older ones.
+4. Hub publishes `creds` `{v, siteId, username, password, ts}` (QoS 1, not retained).
+5. Board saves them to NVS and reconnects as itself. If a later login is refused (code 4/5), it deletes them and bootstraps again.
+
+Approval: in dev, `DEV_AUTO_APPROVE_SITE` approves new boards into that site. In production that variable is empty, and credentials are issued only by the BLE claim step (proof of possession, W2). Hellos are rate-limited to one credential issue per board per 30 s.
+
+> Bench caveat: until the TLS listener (8883) lands before the pilot, credentials cross the LAN in clear text.
 
 ## 6. Versioning
 

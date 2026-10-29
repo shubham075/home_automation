@@ -1,19 +1,24 @@
 // MQTT → database → WebSocket. Handles everything devices publish (docs/02-mqtt-spec.md).
 import type { FastifyBaseLogger } from 'fastify';
 import {
+  BOOTSTRAP_HELLO_WILDCARD,
   CmdAck,
   DEVICE_WILDCARD,
   Event,
+  Hello,
   Meta,
   State,
   Status,
   Telemetry,
+  parseBootstrapTopic,
   parseDevTopic,
 } from '@sw6/protocol';
 import { config } from './config';
 import { db } from './db';
 import { handleAck } from './commands';
+import { DYNSEC_RESPONSE, ensureBrokerSetup, onDynsecMessage } from './dynsec';
 import { mqttClient } from './mqtt-client';
+import { onHello } from './provisioning';
 import { broadcast } from './realtime';
 import { endpointViews } from './views';
 
@@ -29,14 +34,21 @@ const SOURCE: Record<State['src'], string> = {
 export function startBridge(log: FastifyBaseLogger) {
   mqttClient.on('connect', () => {
     log.info({ url: config.MQTT_URL }, 'mqtt connected');
-    mqttClient.subscribe(DEVICE_WILDCARD, { qos: 1 });
+    mqttClient.subscribe([DEVICE_WILDCARD, BOOTSTRAP_HELLO_WILDCARD, DYNSEC_RESPONSE], { qos: 1 }, (err) => {
+      if (err) return log.error({ err }, 'mqtt subscribe failed');
+      ensureBrokerSetup(config.MQTT_ADMIN_USER, config.MQTT_BOOTSTRAP_PASSWORD)
+        .then(() => log.info('broker roles and bootstrap login ready'))
+        .catch((e) => log.error({ err: String(e) }, 'broker setup failed'));
+    });
   });
   mqttClient.on('error', (err) => log.error({ err }, 'mqtt error'));
   mqttClient.on('message', (topic, buf) => {
+    if (onDynsecMessage(topic, buf)) return;
     // Messages from one device are handled strictly in order (meta must land before state).
-    const key = parseDevTopic(topic)?.deviceId ?? topic;
+    const boot = parseBootstrapTopic(topic);
+    const key = boot?.deviceId ?? parseDevTopic(topic)?.deviceId ?? topic;
     const next = (queues.get(key) ?? Promise.resolve())
-      .then(() => handle(topic, buf))
+      .then(() => (boot?.leaf === 'hello' ? onHello(boot.deviceId, Hello.parse(JSON.parse(buf.toString())), log) : handle(topic, buf)))
       .catch((err) => log.warn({ err: String(err), topic }, 'mqtt message rejected'));
     queues.set(key, next);
     void next.then(() => {
@@ -84,7 +96,7 @@ async function onStatus(t: DevTopic, status: Status) {
 }
 
 async function onMeta(t: DevTopic, meta: Meta) {
-  const dev = (await findDevice(t)) ?? (await autoRegister(t, meta));
+  const dev = await findDevice(t);
   if (!dev) return;
 
   await db.device.update({
@@ -99,32 +111,6 @@ async function onMeta(t: DevTopic, meta: Meta) {
     });
   }
   broadcast(t.siteId, { type: 'endpoints.changed', endpoints: await endpointViews({ deviceId: dev.id }) });
-}
-
-// Dev shortcut for the bench. Production devices join through the BLE claim flow (W2).
-async function autoRegister(t: DevTopic, meta: Meta) {
-  if (!config.AUTO_REGISTER_DEVICES) return null;
-  const site = await db.site.findUnique({ where: { id: t.siteId }, include: { hubs: { take: 1 } } });
-  const model = await db.deviceModel.findUnique({ where: { sku: meta.model } });
-  if (!site || !model) return null;
-  if (await db.device.findUnique({ where: { id: t.deviceId } })) return null; // registered to another site
-
-  const dev = await db.device.create({
-    data: {
-      id: t.deviceId,
-      siteId: site.id,
-      hubId: site.hubs[0]?.id,
-      modelId: model.id,
-      name: `${meta.model} ${meta.mac.slice(-5).replace(':', '')}`,
-      mac: meta.mac,
-      status: 'online',
-      claimedAt: new Date(),
-    },
-  });
-  await db.auditLog.create({
-    data: { siteId: site.id, actorType: 'system', action: 'device.auto_register', targetType: 'device', targetId: dev.id },
-  });
-  return dev;
 }
 
 async function onState(t: DevTopic, state: State) {

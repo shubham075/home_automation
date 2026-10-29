@@ -130,15 +130,21 @@ model Invitation {
   createdAt    DateTime  @default(now())
 }
 
+// Rotating refresh tokens. Every login starts a family; each refresh replaces the token.
+// Presenting an already-replaced token means it leaked, so the whole family is revoked.
 model RefreshToken {
-  id         String    @id @default(ulid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  tokenHash  String    @unique
-  clientInfo String?
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  id           String    @id @default(ulid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  familyId     String
+  tokenHash    String    @unique
+  replacedById String?
+  clientInfo   String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([familyId])
 }
 
 model WebauthnCredential {

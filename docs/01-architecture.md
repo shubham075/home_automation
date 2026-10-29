@@ -151,8 +151,9 @@ Hub discovery on the LAN: mDNS `_sw6hub._tcp.local` → devices and the app find
 |---|---|
 | Device identity | Unique ID = `sw6-<mac>`; per-device MQTT username/password generated at claim time (X.509 per device in production) |
 | Transport | TLS 1.2+ on 8883/443 (hub-local CA), plain 1883 disabled outside dev |
-| Broker ACL | Device may only publish/subscribe `ha/v1/{site}/dev/{itsOwnId}/#` |
-| Users | Argon2id password hashes, short-lived JWT (15 min) + rotating refresh tokens |
+| Broker ACL | Mosquitto Dynamic Security, managed live by the backend: anonymous refused, each device login locked to its client id and its own `ha/v1/{site}/dev/{id}/#` subtree (docs/02-mqtt-spec.md §5) |
+| Users | Argon2id password hashes; JWT access token (15 min); rotating refresh tokens (30 days) with reuse detection that revokes the whole session family; web keeps the refresh token in an httpOnly `SameSite=Strict` cookie and the access token only in memory |
+| Login abuse | 10 login attempts per minute per IP; 5 failures on one account lock it for 15 min; unknown phone numbers take the same time to reject as wrong passwords |
 | OS-level auth | Mobile app keeps the refresh token in Keychain / Keystore, unlocked by fingerprint / Face ID. Works fully offline on the LAN |
 | Passkeys | WebAuthn (SimpleWebAuthn) via Windows Hello / Touch ID / Android. Needs HTTPS on a real domain, so it is enabled in the cloud phase, or earlier by giving each hub a domain such as `<hubid>.<ourdomain>.in` with a Let's Encrypt certificate (DNS-01) pointing at its LAN IP. Browsers reject passkeys on bare IPs and self-signed `.local` hosts |
 | Phone OTP | SMS OTP fallback for login and recovery; needs internet + an SMS provider, so cloud phase |

@@ -19,6 +19,16 @@ export const devTopic = (siteId: string, deviceId: string, leaf: Leaf) =>
 /** Everything any device publishes, for the hub backend. */
 export const DEVICE_WILDCARD = `${NS}/+/dev/+/#`;
 
+/** Unprovisioned boards: hello (device → hub) and creds (hub → that device only, ACL %c). */
+export const bootstrapTopic = (deviceId: string, leaf: 'hello' | 'creds') => `${NS}/bootstrap/${deviceId}/${leaf}`;
+export const BOOTSTRAP_HELLO_WILDCARD = `${NS}/bootstrap/+/hello`;
+
+export function parseBootstrapTopic(topic: string): { deviceId: string; leaf: 'hello' | 'creds' } | null {
+  const p = topic.split('/');
+  if (p.length !== 5 || `${p[0]}/${p[1]}` !== NS || p[2] !== 'bootstrap') return null;
+  return p[4] === 'hello' || p[4] === 'creds' ? { deviceId: p[3], leaf: p[4] } : null;
+}
+
 export function parseDevTopic(topic: string): { siteId: string; deviceId: string; leaf: Leaf } | null {
   const p = topic.split('/');
   if (p.length < 6 || `${p[0]}/${p[1]}` !== NS || p[3] !== 'dev') return null;

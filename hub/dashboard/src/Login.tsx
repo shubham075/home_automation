@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { api, ApiError, setToken } from './api';
+import { ApiError, login } from './api';
 
 export function Login() {
   const [phone, setPhone] = useState('+91');
@@ -12,14 +12,13 @@ export function Login() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ accessToken: string }>('/api/auth/login', { method: 'POST', body: { phone, password } });
-      setToken(res.accessToken);
+      await login(phone, password);
     } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 401
-          ? 'Phone number or password is wrong.'
-          : 'Cannot reach the hub. Check that it is running and you are on the same Wi-Fi.',
-      );
+      if (err instanceof ApiError && err.status === 401) setError('Phone number or password is wrong.');
+      else if (err instanceof ApiError && err.status === 429) {
+        const min = Math.ceil(Number(err.data.retryAfterSec ?? 60) / 60);
+        setError(`Too many attempts. Try again in ${min} minute${min === 1 ? '' : 's'}.`);
+      } else setError('Cannot reach the hub. Check that it is running and you are on the same Wi-Fi.');
     } finally {
       setBusy(false);
     }

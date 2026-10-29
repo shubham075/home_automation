@@ -1,31 +1,102 @@
-import type { FastifyInstance } from 'fastify';
-import { verify } from '@node-rs/argon2';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { hash, verify } from '@node-rs/argon2';
 import { z } from 'zod';
 import { accessibleSites, requireUser, siteRole } from './auth';
 import { CommandError, sendSet } from './commands';
+import { config } from './config';
 import { db } from './db';
+import { clearFailures, lockedFor, recordFailure } from './lockout';
 import { mqttClient } from './mqtt-client';
 import { join } from './realtime';
+import { issueRefreshToken, revokeByToken, rotateRefreshToken } from './tokens';
 import { endpointViews } from './views';
 
-const Login = z.object({ phone: z.string().min(8), password: z.string().min(1) });
+// Web clients get the refresh token as an httpOnly cookie scoped to /api/auth.
+// Native clients (Capacitor) send client:"native" and keep it in Keychain / Keystore.
+const Client = z.enum(['web', 'native']).default('web');
+const Login = z.object({ phone: z.string().min(8).max(20), password: z.string().min(1).max(200), client: Client });
+const Refresh = z.object({ refreshToken: z.string().optional(), client: Client }).default({});
 const CommandBody = z.discriminatedUnion('op', [
   z.object({ op: z.literal('set'), on: z.boolean() }),
   z.object({ op: z.literal('toggle') }),
 ]);
 
+const RT_COOKIE = 'sw6_rt';
+// Verified when the phone is unknown, so response time does not reveal which numbers exist.
+const dummyHash = hash('timing-equaliser-not-a-password');
+
+function setRefreshCookie(req: FastifyRequest, reply: FastifyReply, token: string) {
+  reply.setCookie(RT_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: req.protocol === 'https',
+    path: '/api/auth',
+    maxAge: config.REFRESH_TOKEN_DAYS * 86_400,
+  });
+}
+
+const clearRefreshCookie = (reply: FastifyReply) => reply.clearCookie(RT_COOKIE, { path: '/api/auth' });
+
 export async function routes(app: FastifyInstance) {
   app.get('/api/health', async () => ({ ok: true, mqtt: mqttClient.connected }));
 
-  app.post('/api/auth/login', async (req, reply) => {
-    const body = Login.safeParse(req.body);
-    if (!body.success) return reply.code(400).send({ error: 'invalid_body' });
-    const user = await db.user.findUnique({ where: { phone: body.data.phone } });
-    const ok = user?.passwordHash && user.status === 'active' && (await verify(user.passwordHash, body.data.password));
-    if (!user || !ok) return reply.code(401).send({ error: 'invalid_credentials' });
+  app.post(
+    '/api/auth/login',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const body = Login.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: 'invalid_body' });
+      const { phone, password, client } = body.data;
 
-    await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    return { accessToken: app.jwt.sign({ sub: user.id }), user: { id: user.id, name: user.name, phone: user.phone } };
+      const wait = lockedFor(phone);
+      if (wait) return reply.code(429).send({ error: 'too_many_attempts', retryAfterSec: wait });
+
+      const user = await db.user.findUnique({ where: { phone } });
+      const ok = await verify(user?.passwordHash ?? (await dummyHash), password);
+      if (!user || !ok || user.status !== 'active') {
+        recordFailure(phone);
+        return reply.code(401).send({ error: 'invalid_credentials' });
+      }
+
+      clearFailures(phone);
+      await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      const { token } = await issueRefreshToken(user.id, req.headers['user-agent']);
+      const res = { accessToken: app.jwt.sign({ sub: user.id }), user: { id: user.id, name: user.name, phone: user.phone } };
+      if (client === 'native') return { ...res, refreshToken: token };
+      setRefreshCookie(req, reply, token);
+      return res;
+    },
+  );
+
+  app.post(
+    '/api/auth/refresh',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const body = Refresh.safeParse(req.body ?? {});
+      if (!body.success) return reply.code(400).send({ error: 'invalid_body' });
+      const presented = body.data.refreshToken ?? req.cookies[RT_COOKIE];
+      if (!presented) return reply.code(401).send({ error: 'session_expired' });
+
+      const result = await rotateRefreshToken(presented, req.headers['user-agent']);
+      if (!result.ok) {
+        if (result.reason === 'reused') req.log.warn({ reason: result.reason }, 'refresh token reuse: session family revoked');
+        clearRefreshCookie(reply);
+        return reply.code(401).send({ error: 'session_expired' });
+      }
+
+      const accessToken = app.jwt.sign({ sub: result.userId });
+      if (body.data.client === 'native') return { accessToken, refreshToken: result.token ?? undefined };
+      if (result.token) setRefreshCookie(req, reply, result.token);
+      return { accessToken };
+    },
+  );
+
+  app.post('/api/auth/logout', async (req, reply) => {
+    const body = Refresh.safeParse(req.body ?? {});
+    const presented = (body.success && body.data.refreshToken) || req.cookies[RT_COOKIE];
+    if (presented) await revokeByToken(presented);
+    clearRefreshCookie(reply);
+    return reply.code(204).send();
   });
 
   app.get('/api/me', { onRequest: requireUser }, async (req) => {

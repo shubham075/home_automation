@@ -113,6 +113,8 @@ erDiagram
   REFRESH_TOKEN {
     text id PK
     text user_id FK
+    text family_id "one per login; reuse revokes the family"
+    text replaced_by_id "next token after rotation"
     text token_hash
     text client_info "browser / app + device"
     timestamp expires_at

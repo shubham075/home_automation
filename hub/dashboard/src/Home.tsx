@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { EndpointView } from '@sw6/protocol';
-import { api, ApiError, setToken, type Me } from './api';
+import { api, ApiError, logout, type Me } from './api';
 import { useLive } from './useLive';
 
 export function Home() {
@@ -73,7 +73,7 @@ export function Home() {
             {onCount} on · <span className={connected ? 'text-accent' : 'text-amber-600'}>{connected ? 'Live' : 'Reconnecting…'}</span>
           </p>
         </div>
-        <button onClick={() => setToken(null)} className="text-sm text-slate-500 underline-offset-4 hover:underline">
+        <button onClick={() => void logout()} className="text-sm text-slate-500 underline-offset-4 hover:underline">
           Sign out
         </button>
       </header>

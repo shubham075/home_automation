@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { startBridge } from './bridge';
 import { config } from './config';
@@ -13,6 +15,8 @@ const app = Fastify({
 });
 
 await app.register(cors, { origin: true });
+await app.register(cookie);
+await app.register(rateLimit, { global: false }); // limits are set per route (login, refresh)
 await app.register(jwt, { secret: config.JWT_SECRET, sign: { expiresIn: config.ACCESS_TOKEN_TTL } });
 await app.register(websocket);
 await app.register(routes);

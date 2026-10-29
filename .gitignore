@@ -8,3 +8,4 @@ hub/mosquitto/data/
 hub/mosquitto/log/
 .playwright-mcp/
 .DS_Store
+tools/device-simulator/.sim-creds.json
