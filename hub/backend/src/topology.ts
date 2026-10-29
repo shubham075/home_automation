@@ -13,6 +13,7 @@ const FloorBody = z.object({ name, level: z.number().int().min(-5).max(200).defa
 const FloorPatch = FloorBody.partial();
 const RoomBody = z.object({ name, type: z.enum(ROOM_TYPES).default('other'), floorId: z.string().nullable().default(null) });
 const RoomPatch = z.object({ name: name.optional(), type: z.enum(ROOM_TYPES).optional(), floorId: z.string().nullable().optional() });
+const SiteLocation = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) });
 const RoomOrder = z.object({ roomIds: z.array(z.string()).min(1).max(500) });
 const EndpointPatch = z
   .object({
@@ -35,11 +36,12 @@ export function parseBody<T>(schema: ZodType<T, z.ZodTypeDef, unknown>, body: un
 }
 
 async function topology(siteId: string): Promise<Topology> {
-  const [floors, rooms] = await Promise.all([
+  const [site, floors, rooms] = await Promise.all([
+    db.site.findUniqueOrThrow({ where: { id: siteId }, select: { lat: true, lng: true, timezone: true } }),
     db.floor.findMany({ where: { siteId }, orderBy: [{ level: 'asc' }, { sortOrder: 'asc' }], select: { id: true, name: true, level: true } }),
     db.room.findMany({ where: { siteId }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true, type: true, floorId: true, sortOrder: true } }),
   ]);
-  return { floors, rooms };
+  return { location: site, floors, rooms };
 }
 
 /** A referenced floor or room must belong to the same site. */
@@ -56,6 +58,16 @@ export async function topologyRoutes(app: FastifyInstance) {
   app.get<{ Params: { siteId: string } }>('/api/sites/:siteId/topology', auth, async (req, reply) => {
     if (!(await guardSite(req, reply, req.params.siteId, CAN.control))) return;
     return topology(req.params.siteId);
+  });
+
+  app.patch<{ Params: { siteId: string } }>('/api/sites/:siteId', auth, async (req, reply) => {
+    const { siteId } = req.params;
+    if (!(await guardSite(req, reply, siteId, CAN.manageRooms))) return;
+    const body = parseBody(SiteLocation, req.body, reply);
+    if (!body) return;
+    await db.site.update({ where: { id: siteId }, data: body });
+    changed(siteId);
+    return reply.code(204).send();
   });
 
   // ---- floors

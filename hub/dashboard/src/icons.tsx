@@ -17,6 +17,7 @@ const paths: Record<string, string> = {
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   eyeOff: 'M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-3 3.5M6.4 7.4A17 17 0 0 0 3 12s4 6 9 6a9 9 0 0 0 4-1',
   close: 'M6 6l12 12M18 6 6 18',
+  bell: 'M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0',
 };
 
 export function Icon({ name, className = 'size-5' }: { name: string; className?: string }) {

@@ -4,7 +4,9 @@ import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
+import { automationRoutes, startAutomationEngine } from './automations';
 import { startBridge } from './bridge';
+import { notificationRoutes } from './notifications';
 import { config } from './config';
 import { db, tuneDatabase } from './db';
 import { mqttClient } from './mqtt-client';
@@ -24,9 +26,12 @@ await app.register(websocket);
 await app.register(routes);
 await app.register(topologyRoutes);
 await app.register(sceneRoutes);
+await app.register(automationRoutes);
+await app.register(notificationRoutes);
 
 await tuneDatabase();
 startBridge(app.log);
+startAutomationEngine(app.log);
 await app.listen({ port: config.PORT, host: '0.0.0.0' });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

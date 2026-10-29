@@ -1,7 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { CAN, roleRank, type EndpointView, type RunResult, type SceneView } from '@sw6/protocol';
 import { api, ApiError, logout } from './api';
-import { describeRun, endpointLabel, groupByFloor, useEndpoints, useMe, useScenes, useTopology } from './data';
+import { useQueryClient } from '@tanstack/react-query';
+import { Automations } from './Automations';
+import { describeRun, endpointLabel, groupByFloor, useEndpoints, useMe, useNotifications, useScenes, useTopology } from './data';
 import { Icon } from './icons';
 import { Manage } from './Manage';
 import { SceneEditor } from './SceneEditor';
@@ -15,7 +17,7 @@ export function Home() {
   const topo = useTopology(site?.id);
   const scenes = useScenes(site?.id);
 
-  const [view, setView] = useState<'home' | 'manage'>('home');
+  const [view, setView] = useState<'home' | 'automations' | 'manage'>('home');
   const [editing, setEditing] = useState<SceneView | 'new' | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   // endpointId → cid of the command waiting for the device's acknowledgement
@@ -90,7 +92,9 @@ export function Home() {
         </div>
         <nav className="flex items-center gap-1 text-sm">
           <TabButton active={view === 'home'} onClick={() => setView('home')}>Home</TabButton>
+          <TabButton active={view === 'automations'} onClick={() => setView('automations')}>Automations</TabButton>
           {rank >= CAN.manageRooms && <TabButton active={view === 'manage'} onClick={() => setView('manage')}>Rooms & channels</TabButton>}
+          {site && <Bell siteId={site.id} />}
           <button onClick={() => void logout()} className="ml-2 text-slate-500 underline-offset-4 hover:underline">Sign out</button>
         </nav>
       </header>
@@ -101,6 +105,8 @@ export function Home() {
         <p className="text-slate-500">This account has no homes yet.</p>
       ) : view === 'manage' ? (
         <Manage siteId={site.id} notify={notify} />
+      ) : view === 'automations' ? (
+        <Automations siteId={site.id} canEdit={rank >= CAN.editScenes} notify={notify} />
       ) : visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-500 dark:border-slate-700">
           No devices yet. Start the simulator with <code className="font-mono">pnpm sim</code> or power on an SW6 board.
@@ -184,6 +190,45 @@ export function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+function Bell({ siteId }: { siteId: string }) {
+  const qc = useQueryClient();
+  const n = useNotifications(siteId);
+  const [open, setOpen] = useState(false);
+  const unread = n.data?.unread ?? 0;
+
+  async function toggle() {
+    setOpen((o) => !o);
+    if (!open && unread) {
+      await api(`/api/sites/${siteId}/notifications/read`, { method: 'POST' }).catch(() => undefined);
+      qc.invalidateQueries({ queryKey: ['notifications', siteId] });
+    }
+  }
+
+  return (
+    <span className="relative">
+      <button onClick={toggle} aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open} className="relative rounded-md p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white">
+        <Icon name="bell" />
+        {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-red-600 px-1 text-[10px] leading-4 font-bold text-white">{unread > 9 ? '9+' : unread}</span>}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+          {(n.data?.items ?? []).length === 0 ? (
+            <p className="p-2 text-sm text-slate-500">No notifications yet. Automations can send them.</p>
+          ) : (
+            n.data!.items.map((x) => (
+              <div key={x.id} className="rounded-lg p-2 text-sm">
+                <p className="font-semibold">{x.title}</p>
+                <p className="text-slate-600 dark:text-slate-300">{x.body}</p>
+                <p className="text-xs text-slate-400">{new Date(x.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </span>
   );
 }
 

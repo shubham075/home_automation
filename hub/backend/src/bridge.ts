@@ -13,6 +13,7 @@ import {
   parseBootstrapTopic,
   parseDevTopic,
 } from '@sw6/protocol';
+import { onDeviceStatus, onEndpointChanged } from './automations';
 import { config } from './config';
 import { db } from './db';
 import { handleAck } from './commands';
@@ -97,6 +98,7 @@ async function onStatus(t: DevTopic, status: Status) {
   if (!dev) return;
   await db.device.update({ where: { id: dev.id }, data: { status, lastSeenAt: new Date() } });
   broadcast(t.siteId, { type: 'device.status', deviceId: dev.id, online: status === 'online' });
+  void onDeviceStatus(t.siteId, dev.id, status === 'online');
 }
 
 async function onMeta(t: DevTopic, meta: Meta) {
@@ -137,6 +139,7 @@ async function onState(t: DevTopic, state: State) {
   );
   if (changed.length) {
     broadcast(t.siteId, { type: 'endpoints.changed', endpoints: await endpointViews({ id: { in: changed.map((e) => e.id) } }) });
+    for (const e of changed) void onEndpointChanged(t.siteId, e.id, state.ch[e.channel - 1]);
   }
 }
 

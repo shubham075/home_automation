@@ -44,7 +44,7 @@ Try it from your phone: open `http://<laptop-ip>:5173` on the same Wi-Fi.
 
 ## Status
 
-Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25).
+Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18).
 
 ### Done
 
@@ -69,18 +69,20 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - Channel settings: name, room, load type + icon, favorite, hide, power-cut restore policy pushed to the board
 - Scenes: built-in All off, user scenes, per-room All off, per-channel result details
 - Wall-switch changes shown live with "wall switch" source; offline detection via Last Will
+- Automations: triggers at a time (with weekdays), sunrise/sunset ± offset (site location), channel on/off, board offline for N min; actions switch channels (optional auto-off timer), run a scene, send an in-app notification; optional time window; enable/disable, Run now, last-run result
+- In-app notifications with unread badge
 
 **Apps and tools**
-- React PWA dashboard: Home, scenes, scene editor, Rooms & channels (admins)
+- React PWA dashboard: Home, scenes, scene editor, Automations with guided editor, notifications, Rooms & channels + site location (admins)
 - Device simulator: bootstrap, stored credentials, config, keyboard wall switches, offline drop
 
 ### Remaining
 
 **Next (software, no hardware needed)**
-- [ ] Automations and schedules: time, sunrise/sunset, wall switch, device offline triggers
 - [ ] BLE claim flow: QR + proof of possession, replacing dev auto-approve
 - [ ] Members and invitations: invite by phone, guest access windows, room-limited guests
-- [ ] Notifications (in-app first, then push)
+- [ ] Push notifications (with the Capacitor app)
+- [ ] Automation conditions beyond time window (e.g. only if another channel is off), motion/sensor triggers once sensor boards exist
 - [ ] Energy history and charts once metering hardware exists
 
 **Before the first pilot**
@@ -104,4 +106,6 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 **Known limitations**
 - Credentials cross the LAN in clear text until broker TLS lands
 - Login lockout counters are in memory and reset on backend restart
+- Pending auto-off timers and board-offline timers live in memory; a backend restart drops them
+- Missed scheduled runs (hub off at that minute) are skipped, not replayed
 - Whole-house scenes take ~1.7 s for 12 channels; one message per board (`set_many`) would cut this

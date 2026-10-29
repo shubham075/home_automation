@@ -42,6 +42,8 @@ export type EndpointView = {
 };
 
 export type Topology = {
+  /** Used for sunrise / sunset automations. */
+  location: { lat: number | null; lng: number | null; timezone: string };
   floors: { id: string; name: string; level: number }[];
   rooms: { id: string; name: string; type: string; floorId: string | null; sortOrder: number }[];
 };
@@ -65,4 +67,6 @@ export type ServerMessage =
   | { type: 'device.status'; deviceId: string; online: boolean }
   | { type: 'command.result'; cid: string; endpointId: string; status: 'acked' | 'failed' | 'timeout'; error?: string }
   | { type: 'topology.changed' }
-  | { type: 'scenes.changed' };
+  | { type: 'scenes.changed' }
+  | { type: 'automations.changed' }
+  | { type: 'notification'; title: string; body: string };

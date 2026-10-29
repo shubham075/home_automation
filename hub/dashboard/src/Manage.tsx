@@ -56,6 +56,7 @@ export function Manage({ siteId, notify }: { siteId: string; notify: (msg: strin
   if (!topo.data || !endpoints.data) return <p className="text-slate-500">Loading…</p>;
   return (
     <div className="flex flex-col gap-10">
+      <LocationSection siteId={siteId} topo={topo.data} call={call} />
       <RoomsSection siteId={siteId} topo={topo.data} call={call} />
       <ChannelsSection topo={topo.data} endpoints={endpoints.data} call={call} />
     </div>
@@ -63,6 +64,28 @@ export function Manage({ siteId, notify }: { siteId: string; notify: (msg: strin
 }
 
 type Call = (path: string, method: string, body?: unknown, okMsg?: string) => Promise<void>;
+
+function LocationSection({ siteId, topo, call }: { siteId: string; topo: Topology; call: Call }) {
+  const [lat, setLat] = useState(topo.location.lat?.toString() ?? '');
+  const [lng, setLng] = useState(topo.location.lng?.toString() ?? '');
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    const [a, b] = [Number(lat), Number(lng)];
+    if (!lat || !lng || Number.isNaN(a) || Number.isNaN(b)) return;
+    void call(`/api/sites/${siteId}`, 'PATCH', { lat: a, lng: b }, 'Location saved. Sunrise and sunset times now use it.');
+  };
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-lg font-semibold">Location</h2>
+      <p className="text-sm text-slate-500">Used for sunrise and sunset automations. Copy the coordinates from Google Maps (long-press the home). Time zone: {topo.location.timezone}.</p>
+      <form onSubmit={save} className="flex flex-wrap items-center gap-2">
+        <input id="site-lat" inputMode="decimal" placeholder="Latitude, e.g. 12.9716" value={lat} onChange={(e) => setLat(e.target.value)} className={`${field} w-44`} />
+        <input id="site-lng" inputMode="decimal" placeholder="Longitude, e.g. 77.5946" value={lng} onChange={(e) => setLng(e.target.value)} className={`${field} w-44`} />
+        <button type="submit" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold dark:border-slate-700">Save location</button>
+      </form>
+    </section>
+  );
+}
 
 function RoomsSection({ siteId, topo, call }: { siteId: string; topo: Topology; call: Call }) {
   const [roomName, setRoomName] = useState('');

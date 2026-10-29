@@ -29,7 +29,17 @@ await db.orgMembership.upsert({
 
 const site = await db.site.upsert({
   where: { id: siteId },
-  create: { id: siteId, orgId: org.id, name: 'Demo Home', type: 'independent_house', city: 'Bengaluru', state: 'Karnataka', status: 'active' },
+  create: {
+    id: siteId,
+    orgId: org.id,
+    name: 'Demo Home',
+    type: 'independent_house',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    lat: 12.9716,
+    lng: 77.5946,
+    status: 'active',
+  },
   update: {},
 });
 

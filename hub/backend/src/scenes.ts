@@ -18,11 +18,17 @@ const SceneBody = z.object({
   actions: z.array(z.object({ endpointId: z.string(), on: z.boolean() })).min(1).max(64),
 });
 
-async function runActions(siteId: string, actions: SceneAction[], userId: string, name: string): Promise<RunResult> {
+export async function runActions(
+  siteId: string,
+  actions: SceneAction[],
+  userId: string | null,
+  name: string,
+  source: 'scene' | 'automation' = 'scene',
+): Promise<RunResult> {
   const results = await Promise.all(
     actions.map(async ({ endpointId, on }): Promise<ActionResult> => {
       try {
-        const { result } = await sendSet({ endpointId, on, userId, source: 'scene' });
+        const { result } = await sendSet({ endpointId, on, userId: userId ?? undefined, source });
         return { endpointId, status: await result };
       } catch (err) {
         return { endpointId, status: err instanceof CommandError && err.code === 'device_offline' ? 'offline' : 'failed' };
@@ -32,7 +38,7 @@ async function runActions(siteId: string, actions: SceneAction[], userId: string
   await db.auditLog.create({
     data: {
       siteId,
-      actorType: 'user',
+      actorType: userId ? 'user' : 'automation',
       actorId: userId,
       action: 'scene.run',
       data: { name, ok: results.filter((r) => r.status === 'acked').length, total: results.length },

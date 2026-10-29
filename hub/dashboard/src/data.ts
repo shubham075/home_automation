@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { EndpointView, RunResult, SceneView, Topology } from '@sw6/protocol';
+import type { AutomationView, EndpointView, NotificationView, RunResult, SceneView, Topology } from '@sw6/protocol';
 import { api, type Me } from './api';
 
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/api/me') });
@@ -19,6 +19,20 @@ export const useScenes = (siteId?: string) =>
     queryKey: ['scenes', siteId],
     enabled: !!siteId,
     queryFn: () => api<{ scenes: SceneView[] }>(`/api/sites/${siteId}/scenes`).then((r) => r.scenes),
+  });
+
+export const useAutomations = (siteId?: string) =>
+  useQuery({
+    queryKey: ['automations', siteId],
+    enabled: !!siteId,
+    queryFn: () => api<{ automations: AutomationView[] }>(`/api/sites/${siteId}/automations`).then((r) => r.automations),
+  });
+
+export const useNotifications = (siteId?: string) =>
+  useQuery({
+    queryKey: ['notifications', siteId],
+    enabled: !!siteId,
+    queryFn: () => api<{ unread: number; items: NotificationView[] }>(`/api/sites/${siteId}/notifications`),
   });
 
 export type RoomGroup = { room: Topology['rooms'][number] | null; endpoints: EndpointView[] };

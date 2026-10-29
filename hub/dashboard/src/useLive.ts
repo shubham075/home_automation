@@ -49,6 +49,10 @@ export function useLive(siteId: string | undefined, onCommandResult: (r: Command
           qc.invalidateQueries({ queryKey: key }); // room names appear on endpoints
         } else if (msg.type === 'scenes.changed') {
           qc.invalidateQueries({ queryKey: ['scenes', siteId] });
+        } else if (msg.type === 'automations.changed') {
+          qc.invalidateQueries({ queryKey: ['automations', siteId] });
+        } else if (msg.type === 'notification') {
+          qc.invalidateQueries({ queryKey: ['notifications', siteId] });
         }
       };
       ws.onclose = (e) => {
