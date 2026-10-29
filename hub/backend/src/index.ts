@@ -5,6 +5,7 @@ import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { automationRoutes, startAutomationEngine } from './automations';
+import { scheduleBackups } from './backup';
 import { startBridge } from './bridge';
 import { memberRoutes } from './members';
 import { notificationRoutes } from './notifications';
@@ -18,6 +19,7 @@ import { topologyRoutes } from './topology';
 
 const app = Fastify({
   logger: config.NODE_ENV === 'production' ? true : { transport: { target: 'pino-pretty' } },
+  trustProxy: config.TRUST_PROXY,
 });
 
 await app.register(cors, { origin: true });
@@ -36,6 +38,7 @@ await app.register(memberRoutes);
 await tuneDatabase();
 startBridge(app.log);
 startAutomationEngine(app.log);
+scheduleBackups(app.log);
 await app.listen({ port: config.PORT, host: '0.0.0.0' });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

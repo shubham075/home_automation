@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+hub/certs
+hub/data
+hub/mosquitto/data
+tools
+firmware
+hardware
+docs
+.git
+.claude

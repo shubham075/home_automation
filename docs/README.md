@@ -10,6 +10,7 @@ Product: **SW6** 6-channel retrofit smart switch + local hub. Local-first, cloud
 | [04-workflows.md](04-workflows.md) | 14 workflow pipelines: device lifecycle, provisioning, commands, physical switch, automations, offline sync, OTA, Zigbee, power cut, customer journey, installer commissioning, CI/CD, hardware, cloud |
 | [05-hardware-bom.md](05-hardware-bom.md) | Phase 1/2 bill of materials with INR prices, ESP32-C6 pin plan |
 | [06-wiring.md](06-wiring.md) | Safety rules, staged bench build, retrofit wiring |
+| [07-pilot-hub.md](07-pilot-hub.md) | Pilot hub on an x86 mini-PC: install, phones' CA, operations, backups, secrets |
 | [../hardware/sw6/](../hardware/sw6/) | SVG schematics: system overview + one-channel detail |
 
 All diagrams are Mermaid: they render in VS Code (with the *Markdown Preview Mermaid Support* extension) and on GitHub.
@@ -21,7 +22,7 @@ All diagrams are Mermaid: they render in VS Code (with the *Markdown Preview Mer
 | Hero product | 6-channel retrofit relay module (SW6) |
 | MCU | ESP32-C6 (Wi-Fi + Zigbee/Thread on one chip) |
 | Firmware | ESP-IDF (C) |
-| Hub | Docker Compose on the laptop now; Raspberry Pi / mini-PC for pilots |
+| Hub | Docker Compose on the laptop for the bench; used x86 mini-PC (Ubuntu 24.04) for pilots |
 | Backend | Node.js 22+ + TypeScript (Fastify, Prisma 6, zod, mqtt.js), pnpm workspace |
 | DB | SQLite now → Postgres (cloud phase) |
 | App | Mobile-first, one codebase: React + TS PWA now → Capacitor Android/iOS before first pilot → Tauri desktop only if needed |

@@ -11,6 +11,13 @@ const Env = z.object({
   ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   NODE_ENV: z.string().default('development'),
+  /** Behind Caddy: trust X-Forwarded-Proto so refresh cookies get the Secure flag. */
+  TRUST_PROXY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  /** Set on the pilot hub: nightly SQLite backups land here. */
+  BACKUP_DIR: z.string().default(''),
 });
 
 export const config = Env.parse(process.env);

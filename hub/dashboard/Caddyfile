@@ -1,0 +1,47 @@
+{
+	# Certificates come from the hub-local CA (hub/scripts/make-certs.sh), not from the internet.
+	auto_https off
+	admin off
+}
+
+# Plain HTTP: only the CA download (phones need it before they trust HTTPS), health, redirect.
+:80 {
+	handle /healthz {
+		respond "ok" 200
+	}
+	handle /ca.crt {
+		root * /certs-public
+		header Content-Type application/x-x509-ca-cert
+		file_server
+	}
+	handle {
+		redir https://{host}{uri} 308
+	}
+}
+
+:443 {
+	tls /certs/server.crt /certs/server.key
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+	handle /ws {
+		reverse_proxy backend:8080
+	}
+	handle /ca.crt {
+		root * /certs-public
+		header Content-Type application/x-x509-ca-cert
+		file_server
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

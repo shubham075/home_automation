@@ -11,7 +11,9 @@ Design docs: [docs/README.md](docs/README.md)
 | `packages/protocol` | Shared MQTT topics + zod payload schemas + WebSocket message types |
 | `hub/backend` | Node.js + TypeScript: Fastify API, MQTT bridge, command service, Prisma (SQLite) |
 | `hub/dashboard` | React + Vite PWA (Capacitor mobile wrapper comes before the first pilot) |
-| `hub/docker-compose.yml` | Mosquitto broker |
+| `hub/docker-compose.yml` | Bench: Mosquitto broker on plain 1883 |
+| `hub/docker-compose.prod.yml` | Pilot hub: broker (TLS 8883), backend, Caddy (HTTPS 443) — see [docs/07-pilot-hub.md](docs/07-pilot-hub.md) |
+| `hub/deploy`, `hub/scripts` | Ubuntu installer, certificates, secrets, broker init, restore |
 | `tools/device-simulator` | Fake SW6 boards that follow the real MQTT contract |
 | `firmware/sw6-esp32c6` | ESP-IDF firmware (placeholder until hardware arrives) |
 | `hardware/sw6` | Wiring schematics (SVG) |
@@ -44,9 +46,13 @@ Simulator keys: `1`–`6` flip a wall switch, `o` drops the device offline / rec
 
 Try it from your phone: open `http://<laptop-ip>:5173` on the same Wi-Fi.
 
+## Pilot hub (client homes)
+
+x86 mini-PC with Ubuntu Server 24.04, one command: `sudo bash hub/deploy/install.sh --phone +91… --site "…"`. Full guide, operations and secrets: [docs/07-pilot-hub.md](docs/07-pilot-hub.md). To rehearse on this machine: `pnpm pilot:init --phone +91…`, `pnpm pilot:certs <lan-ip>`, `pnpm pilot:up`, then https://localhost (trust `hub/certs/ca.crt`).
+
 ## Status
 
-Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18, claim 18, members 31).
+Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18, claim 18, members 31, pilot stack 17).
 
 ### Done
 
@@ -77,6 +83,10 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - Automations: triggers at a time (with weekdays), sunrise/sunset ± offset (site location), channel on/off, board offline for N min; actions switch channels (optional auto-off timer), run a scene, send an in-app notification; optional time window; enable/disable, Run now, last-run result
 - In-app notifications with unread badge
 
+**Pilot hub**
+- Docker images (backend, Caddy web) and `docker-compose.prod.yml`; hub-local CA (10 y) + server cert (825 d); broker TLS-only on 8883; HTTPS app with HTTP→HTTPS redirect and CA download; Secure cookies behind the proxy
+- Run-once seed of first owner/site from `.env.prod` (random secrets); nightly SQLite backups (14 kept) + restore script; health checks and auto-restart; Ubuntu installer with mDNS name `sw6hub.local`
+
 **Apps and tools**
 - React PWA dashboard: Home, scenes, scene editor, Automations with guided editor, notifications, People, invite-code sign-up, Rooms & channels + site location + add/remove boards (admins)
 - Device simulator: bootstrap, stored credentials, config, keyboard wall switches, offline drop
@@ -91,9 +101,9 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - [ ] Energy history and charts once metering hardware exists
 
 **Before the first pilot**
-- [ ] TLS on the broker (8883, hub-local CA) and HTTPS for the app
 - [ ] Capacitor Android/iOS app: BLE Wi-Fi provisioning for factory-fresh boards (ESP-IDF security v2, setup code as PoP), QR scan on iPhone, push, biometric unlock, Keychain/Keystore tokens
-- [ ] Backend in Docker on a Raspberry Pi / mini-PC; backups of the SQLite file
+- [ ] Run `hub/deploy/install.sh` on the real mini-PC; test `sw6hub.local` and CA install on Android and iPhone
+- [ ] Off-box backups (USB or cloud); slimmer backend image
 - [ ] OTA firmware updates (signed, A/B partitions, rollback)
 - [ ] Zigbee2MQTT adapter (Sonoff ZBDongle-E)
 - [ ] Unit tests and CI (GitHub Actions); move the e2e checks into the repo
@@ -109,7 +119,7 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - [ ] Partner/installer portal, installation jobs, billing
 
 **Known limitations**
-- Credentials cross the LAN in clear text until broker TLS lands
+- Bench setup (`pnpm dev`) still uses plain MQTT/HTTP; the pilot stack is TLS end to end
 - Login lockout counters are in memory and reset on backend restart
 - Pending auto-off timers and board-offline timers live in memory; a backend restart drops them
 - Missed scheduled runs (hub off at that minute) are skipped, not replayed

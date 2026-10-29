@@ -1,8 +1,16 @@
-// Dev seed: one platform org, one admin user, one demo site with rooms, this hub, and the SW6 device model.
+// Seed: one platform org, the first owner, one site with rooms, this hub, and the SW6 device model.
+// Dev: re-runnable (resets the admin password). Pilot hub: SEED_ONLY_IF_EMPTY=true runs it once.
 import { PrismaClient } from '@prisma/client';
 import { hash } from '@node-rs/argon2';
 
 const db = new PrismaClient();
+const env = process.env;
+
+if (env.SEED_ONLY_IF_EMPTY === 'true' && (await db.user.count()) > 0) {
+  console.log('Database already has users; seed skipped.');
+  await db.$disconnect();
+  process.exit(0);
+}
 
 const siteId = process.env.SEED_SITE_ID ?? 'demo';
 const phone = process.env.SEED_ADMIN_PHONE;
@@ -17,7 +25,7 @@ const org = await db.organization.upsert({
 
 const admin = await db.user.upsert({
   where: { phone },
-  create: { name: 'Admin', phone, passwordHash: await hash(password), phoneVerified: true },
+  create: { name: env.SEED_ADMIN_NAME ?? 'Admin', phone, passwordHash: await hash(password), phoneVerified: true },
   update: { passwordHash: await hash(password) },
 });
 
@@ -32,12 +40,12 @@ const site = await db.site.upsert({
   create: {
     id: siteId,
     orgId: org.id,
-    name: 'Demo Home',
-    type: 'independent_house',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    lat: 12.9716,
-    lng: 77.5946,
+    name: env.SEED_SITE_NAME ?? 'Demo Home',
+    type: env.SEED_SITE_TYPE ?? 'independent_house',
+    city: env.SEED_SITE_CITY ?? 'Bengaluru',
+    state: env.SEED_SITE_STATE ?? 'Karnataka',
+    lat: Number(env.SEED_SITE_LAT ?? 12.9716),
+    lng: Number(env.SEED_SITE_LNG ?? 77.5946),
     status: 'active',
   },
   update: {},

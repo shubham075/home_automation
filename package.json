@@ -12,7 +12,12 @@
     "db:setup": "pnpm --filter @sw6/backend db:setup",
     "dev": "concurrently -n backend,dashboard -c blue,magenta \"pnpm --filter @sw6/backend dev\" \"pnpm --filter @sw6/dashboard dev\"",
     "sim": "pnpm --filter @sw6/device-simulator start",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "pilot:init": "node hub/scripts/init-prod.mjs",
+    "pilot:certs": "bash hub/scripts/make-certs.sh",
+    "pilot:up": "node hub/scripts/init-broker.mjs --prod && docker compose -f hub/docker-compose.prod.yml up -d --build",
+    "pilot:down": "docker compose -f hub/docker-compose.prod.yml down",
+    "pilot:backup": "docker compose -f hub/docker-compose.prod.yml exec backend pnpm exec tsx src/backup-cli.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

@@ -41,6 +41,8 @@ export class SimDevice {
     /** Factory-programmed, printed on the QR label; survives factory reset. */
     readonly setupCode: string,
     private readonly log: (msg: string) => void,
+    /** Hub CA for mqtts:// (pilot hub); undefined on the plain bench broker. */
+    private readonly tlsCa?: Buffer,
   ) {
     this.id = deviceIdFor('SW6', mac);
   }
@@ -76,6 +78,7 @@ export class SimDevice {
       clientId: this.id,
       username: 'bootstrap',
       password: this.bootstrapPassword,
+      ca: this.tlsCa,
       clean: true,
       reconnectPeriod: 5000,
     });
@@ -120,6 +123,7 @@ export class SimDevice {
       clientId: this.id,
       username: creds.username,
       password: creds.password,
+      ca: this.tlsCa,
       clean: false,
       keepalive: 30,
       reconnectPeriod: 1000,
