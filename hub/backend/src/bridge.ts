@@ -32,7 +32,9 @@ const SOURCE: Record<State['src'], string> = {
 };
 
 export function startBridge(log: FastifyBaseLogger) {
-  mqttClient.on('connect', () => {
+  // The client starts connecting at import time, so it may already be connected here;
+  // without the explicit call below, the backend would never subscribe.
+  const onConnect = () => {
     log.info({ url: config.MQTT_URL }, 'mqtt connected');
     mqttClient.subscribe([DEVICE_WILDCARD, BOOTSTRAP_HELLO_WILDCARD, DYNSEC_RESPONSE], { qos: 1 }, (err) => {
       if (err) return log.error({ err }, 'mqtt subscribe failed');
@@ -40,7 +42,9 @@ export function startBridge(log: FastifyBaseLogger) {
         .then(() => log.info('broker roles and bootstrap login ready'))
         .catch((e) => log.error({ err: String(e) }, 'broker setup failed'));
     });
-  });
+  };
+  mqttClient.on('connect', onConnect);
+  if (mqttClient.connected) onConnect();
   mqttClient.on('error', (err) => log.error({ err }, 'mqtt error'));
   mqttClient.on('message', (topic, buf) => {
     if (onDynsecMessage(topic, buf)) return;

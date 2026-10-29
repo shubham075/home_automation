@@ -9,3 +9,5 @@ hub/mosquitto/log/
 .playwright-mcp/
 .DS_Store
 tools/device-simulator/.sim-creds.json
+*.db-wal
+*.db-shm

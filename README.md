@@ -48,5 +48,7 @@ Working end to end:
 - Auth: 15-min access tokens, rotating refresh tokens with reuse detection (httpOnly cookie on web, body for native), logout, per-IP rate limit + per-account lockout, site access control
 - Broker: anonymous refused, per-device logins locked to client id and own topics (Mosquitto Dynamic Security), bootstrap flow that issues each board its own password
 - Devices: app command → MQTT → device ack with retry/timeout, wall-switch changes pushed live to every open app, offline detection via Last Will
+- Rooms & channels (admin/technician): floors, rooms (create, rename, reorder, delete), per-channel name, room, load type + icon, favorite, hide, power-cut restore policy pushed to the board as retained config
+- Scenes: built-in All off, user scenes (member and up), per-room All off; runs wait for every ack and report which channels did not respond
 
-Not yet: TLS on the broker (before pilot), BLE claim flow (dev auto-approves into a site), scenes/automations engine, OTA, Zigbee2MQTT, firmware, Capacitor app.
+Not yet: TLS on the broker (before pilot), BLE claim flow (dev auto-approves into a site), automations/schedules, OTA, Zigbee2MQTT, firmware, Capacitor app.

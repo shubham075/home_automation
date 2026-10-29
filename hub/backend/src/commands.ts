@@ -9,7 +9,14 @@ const ACK_TIMEOUT_MS = 3000;
 const MAX_ATTEMPTS = 2;
 
 type Inflight = { timer: NodeJS.Timeout; topic: string; payload: string; attempts: number };
+type Outcome = 'acked' | 'failed' | 'timeout';
 const inflight = new Map<string, Inflight>();
+const waiters = new Map<string, (o: Outcome) => void>();
+
+function settle(cid: string, outcome: Outcome) {
+  waiters.get(cid)?.(outcome);
+  waiters.delete(cid);
+}
 
 export class CommandError extends Error {
   constructor(
@@ -46,10 +53,12 @@ export async function sendSet(opts: { endpointId: string; on?: boolean; userId?:
   const payload = JSON.stringify(cmd);
   // Register before publishing: a fast device can ack before the next line runs.
   inflight.set(cid, { topic, payload, attempts: 1, timer: setTimeout(() => void onTimeout(cid), ACK_TIMEOUT_MS) });
+  /** Settles on ack or timeout (at most ~2 × ACK_TIMEOUT_MS); scenes await it, the app API does not. */
+  const result = new Promise<Outcome>((resolve) => waiters.set(cid, resolve));
   await db.command.update({ where: { id: cid }, data: { status: 'sent', attempts: 1, sentAt: new Date() } });
   mqttClient.publish(topic, payload, { qos: 1 });
 
-  return { cid, on };
+  return { cid, on, result };
 }
 
 async function onTimeout(cid: string) {
@@ -64,6 +73,7 @@ async function onTimeout(cid: string) {
     return;
   }
   inflight.delete(cid);
+  settle(cid, 'timeout');
   const row = await db.command.update({ where: { id: cid }, data: { status: 'timeout' } });
   broadcast(row.siteId, { type: 'command.result', cid, endpointId: row.endpointId, status: 'timeout' });
 }
@@ -78,6 +88,7 @@ export async function handleAck(ack: CmdAck) {
   if (!existing || existing.status === 'acked') return;
 
   const status = ack.ok ? 'acked' : 'failed';
+  settle(ack.cid, status);
   const row = await db.command.update({
     where: { id: ack.cid },
     data: { status, errorCode: ack.err ?? null, ackedAt: new Date() },

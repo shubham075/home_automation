@@ -44,6 +44,11 @@ export function useLive(siteId: string | undefined, onCommandResult: (r: Command
           update((list) => list.map((x) => (x.deviceId === msg.deviceId ? { ...x, deviceOnline: msg.online } : x)));
         } else if (msg.type === 'command.result') {
           onResult.current(msg);
+        } else if (msg.type === 'topology.changed') {
+          qc.invalidateQueries({ queryKey: ['topology', siteId] });
+          qc.invalidateQueries({ queryKey: key }); // room names appear on endpoints
+        } else if (msg.type === 'scenes.changed') {
+          qc.invalidateQueries({ queryKey: ['scenes', siteId] });
         }
       };
       ws.onclose = (e) => {

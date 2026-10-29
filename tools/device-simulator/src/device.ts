@@ -2,6 +2,7 @@
 import mqtt, { type MqttClient } from 'mqtt';
 import {
   Cmd,
+  Config,
   Creds,
   bootstrapTopic,
   devTopic,
@@ -22,6 +23,7 @@ export class SimDevice {
   private siteId = '';
   private client: MqttClient | null = null;
   private relays: boolean[] = Array(CHANNELS).fill(false);
+  private config: Config | null = null;
   private seq = 0;
   private recentCids: string[] = [];
   private telemetryTimer: NodeJS.Timeout | null = null;
@@ -118,6 +120,7 @@ export class SimDevice {
     });
     this.client.on('message', (t, buf) => {
       if (t === topic('cmd')) this.onCmd(buf.toString());
+      else if (t === topic('config')) this.onConfig(buf.toString());
     });
   }
 
@@ -189,6 +192,15 @@ export class SimDevice {
     }
   }
 
+  /** Firmware stores this in NVS; reporting the applied rev in meta tells the hub it converged. */
+  private onConfig(raw: string) {
+    const parsed = raw ? Config.safeParse(JSON.parse(raw)) : null;
+    if (!parsed?.success || parsed.data.rev === this.config?.rev) return;
+    this.config = parsed.data;
+    this.log(`${this.id} config rev ${parsed.data.rev}: power-cut restore [${parsed.data.restore.join(', ')}]`);
+    this.pub('meta', this.meta(), true);
+  }
+
   private ack(cid: string, ok: boolean, err?: CmdAck['err']) {
     const ack: CmdAck = { v: 1, cid, ok, state: this.relayStates, err, ts: Date.now() };
     this.pub('cmd/ack', ack);
@@ -220,7 +232,7 @@ export class SimDevice {
       mac: this.mac,
       channels: Array.from({ length: CHANNELS }, (_, i) => ({ ch: i + 1, kind: 'relay' as const, input: true, maxA: 10 })),
       caps: ['identify', 'restore_policy', 'input_mode'],
-      cfgRev: 0,
+      cfgRev: this.config?.rev ?? 0,
       ts: Date.now(),
     };
   }

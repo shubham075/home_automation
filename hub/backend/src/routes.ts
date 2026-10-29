@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { hash, verify } from '@node-rs/argon2';
 import { z } from 'zod';
-import { accessibleSites, requireUser, siteRole } from './auth';
+import { CAN } from '@sw6/protocol';
+import { accessibleSites, guardSite, requireUser } from './auth';
 import { CommandError, sendSet } from './commands';
 import { config } from './config';
 import { db } from './db';
@@ -105,7 +106,7 @@ export async function routes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { siteId: string } }>('/api/sites/:siteId/endpoints', { onRequest: requireUser }, async (req, reply) => {
-    if (!(await siteRole(req.user.sub, req.params.siteId))) return reply.code(403).send({ error: 'forbidden' });
+    if (!(await guardSite(req, reply, req.params.siteId, CAN.control))) return;
     return { endpoints: await endpointViews({ device: { siteId: req.params.siteId, deletedAt: null } }) };
   });
 
@@ -114,17 +115,15 @@ export async function routes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: 'invalid_body' });
 
     const ep = await db.endpoint.findUnique({ where: { id: req.params.id }, select: { device: { select: { siteId: true } } } });
-    const siteId = ep?.device.siteId;
-    if (!siteId) return reply.code(404).send({ error: 'endpoint_not_found' });
-    if (!(await siteRole(req.user.sub, siteId))) return reply.code(403).send({ error: 'forbidden' });
+    if (!(await guardSite(req, reply, ep?.device.siteId, CAN.control))) return;
 
     try {
-      const result = await sendSet({
+      const { cid, on } = await sendSet({
         endpointId: req.params.id,
         on: body.data.op === 'set' ? body.data.on : undefined,
         userId: req.user.sub,
       });
-      return reply.code(202).send(result);
+      return reply.code(202).send({ cid, on });
     } catch (err) {
       if (err instanceof CommandError) return reply.code(err.httpStatus).send({ error: err.code });
       throw err;

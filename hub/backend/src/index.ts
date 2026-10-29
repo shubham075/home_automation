@@ -6,9 +6,11 @@ import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { startBridge } from './bridge';
 import { config } from './config';
-import { db } from './db';
+import { db, tuneDatabase } from './db';
 import { mqttClient } from './mqtt-client';
 import { routes } from './routes';
+import { sceneRoutes } from './scenes';
+import { topologyRoutes } from './topology';
 
 const app = Fastify({
   logger: config.NODE_ENV === 'production' ? true : { transport: { target: 'pino-pretty' } },
@@ -20,7 +22,10 @@ await app.register(rateLimit, { global: false }); // limits are set per route (l
 await app.register(jwt, { secret: config.JWT_SECRET, sign: { expiresIn: config.ACCESS_TOKEN_TTL } });
 await app.register(websocket);
 await app.register(routes);
+await app.register(topologyRoutes);
+await app.register(sceneRoutes);
 
+await tuneDatabase();
 startBridge(app.log);
 await app.listen({ port: config.PORT, host: '0.0.0.0' });
 

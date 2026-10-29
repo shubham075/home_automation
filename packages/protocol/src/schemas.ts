@@ -81,6 +81,18 @@ export const Telemetry = z.object({
   ts,
 });
 
+export const RestorePolicy = z.enum(['last', 'off', 'on']);
+export const InputMode = z.enum(['toggle', 'follow', 'disabled']);
+
+/** Desired device configuration (hub → device, retained). Device reports the applied rev as meta.cfgRev. */
+export const Config = z.object({
+  v: v1,
+  rev: z.number().int().nonnegative(),
+  restore: z.array(RestorePolicy),
+  inputMode: z.array(InputMode),
+  telemetrySec: z.number().int().min(10).max(3600).default(60),
+});
+
 export const Hello = z.object({
   v: v1,
   model: z.string(),
@@ -102,6 +114,8 @@ export const deviceIdFor = (model: string, mac: string) => `${model.toLowerCase(
 
 export type Status = z.infer<typeof Status>;
 export type Hello = z.infer<typeof Hello>;
+export type Config = z.infer<typeof Config>;
+export type RestorePolicy = z.infer<typeof RestorePolicy>;
 export type Creds = z.infer<typeof Creds>;
 export type Meta = z.infer<typeof Meta>;
 export type State = z.infer<typeof State>;
