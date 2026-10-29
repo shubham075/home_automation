@@ -19,14 +19,21 @@ export const devTopic = (siteId: string, deviceId: string, leaf: Leaf) =>
 /** Everything any device publishes, for the hub backend. */
 export const DEVICE_WILDCARD = `${NS}/+/dev/+/#`;
 
-/** Unprovisioned boards: hello (device → hub) and creds (hub → that device only, ACL %c). */
-export const bootstrapTopic = (deviceId: string, leaf: 'hello' | 'creds') => `${NS}/bootstrap/${deviceId}/${leaf}`;
+/**
+ * Unprovisioned boards (ACL limits each to its own %c topics):
+ * hello, response: device → hub · creds, challenge: hub → that device only.
+ */
+export type BootstrapLeaf = 'hello' | 'creds' | 'challenge' | 'response';
+const BOOTSTRAP_LEAVES: BootstrapLeaf[] = ['hello', 'creds', 'challenge', 'response'];
+export const bootstrapTopic = (deviceId: string, leaf: BootstrapLeaf) => `${NS}/bootstrap/${deviceId}/${leaf}`;
 export const BOOTSTRAP_HELLO_WILDCARD = `${NS}/bootstrap/+/hello`;
+export const BOOTSTRAP_RESPONSE_WILDCARD = `${NS}/bootstrap/+/response`;
 
-export function parseBootstrapTopic(topic: string): { deviceId: string; leaf: 'hello' | 'creds' } | null {
+export function parseBootstrapTopic(topic: string): { deviceId: string; leaf: BootstrapLeaf } | null {
   const p = topic.split('/');
   if (p.length !== 5 || `${p[0]}/${p[1]}` !== NS || p[2] !== 'bootstrap') return null;
-  return p[4] === 'hello' || p[4] === 'creds' ? { deviceId: p[3], leaf: p[4] } : null;
+  const leaf = p[4] as BootstrapLeaf;
+  return BOOTSTRAP_LEAVES.includes(leaf) ? { deviceId: p[3], leaf } : null;
 }
 
 export function parseDevTopic(topic: string): { siteId: string; deviceId: string; leaf: Leaf } | null {

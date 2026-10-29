@@ -1,6 +1,7 @@
 // Installer / admin screen: floors, rooms and per-channel settings. Changes save as you go.
 import { useEffect, useState, type FormEvent } from 'react';
-import { LOAD_TYPES, ROOM_TYPES, type EndpointView, type Topology } from '@sw6/protocol';
+import { LOAD_TYPES, ROOM_TYPES, canManageDevices, type EndpointView, type Topology } from '@sw6/protocol';
+import { AddDevice } from './AddDevice';
 import { api, ApiError } from './api';
 import { useEndpoints, useTopology } from './data';
 import { Icon, LOAD_LABEL, ROOM_LABEL } from './icons';
@@ -32,7 +33,7 @@ function NameInput({ id, value, onSave, label }: { id: string; value: string; on
   );
 }
 
-export function Manage({ siteId, notify }: { siteId: string; notify: (msg: string) => void }) {
+export function Manage({ siteId, role, notify }: { siteId: string; role: string; notify: (msg: string) => void }) {
   const topo = useTopology(siteId);
   const endpoints = useEndpoints(siteId);
 
@@ -58,7 +59,7 @@ export function Manage({ siteId, notify }: { siteId: string; notify: (msg: strin
     <div className="flex flex-col gap-10">
       <LocationSection siteId={siteId} topo={topo.data} call={call} />
       <RoomsSection siteId={siteId} topo={topo.data} call={call} />
-      <ChannelsSection topo={topo.data} endpoints={endpoints.data} call={call} />
+      <ChannelsSection siteId={siteId} role={role} topo={topo.data} endpoints={endpoints.data} call={call} />
     </div>
   );
 }
@@ -200,17 +201,82 @@ function RoomsSection({ siteId, topo, call }: { siteId: string; topo: Topology; 
   );
 }
 
-function ChannelsSection({ topo, endpoints, call }: { topo: Topology; endpoints: EndpointView[]; call: Call }) {
+/** One channel's settings; also used right after a board is added. */
+export function ChannelRow({
+  ep,
+  rooms,
+  patch,
+  compact = false,
+}: {
+  ep: EndpointView;
+  rooms: Topology['rooms'];
+  patch: (id: string, body: Record<string, unknown>) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 dark:border-slate-800 ${ep.hidden ? 'opacity-50' : ''}`}>
+      <span className="w-8 text-xs text-slate-500 tabular-nums">Ch {ep.channel}</span>
+      <NameInput id={`ep-name-${ep.id}`} label={`Channel ${ep.channel} name`} value={ep.name} onSave={(name) => patch(ep.id, { name })} />
+      <select id={`ep-room-${ep.id}`} aria-label="Room" className={field} value={ep.room?.id ?? ''} onChange={(e) => patch(ep.id, { roomId: e.target.value || null })}>
+        <option value="">No room</option>
+        {rooms.map((r) => (
+          <option key={r.id} value={r.id}>{r.name}</option>
+        ))}
+      </select>
+      <select id={`ep-load-${ep.id}`} aria-label="Load type" className={field} value={ep.loadType} onChange={(e) => patch(ep.id, { loadType: e.target.value })}>
+        {LOAD_TYPES.map((t) => (
+          <option key={t} value={t}>{LOAD_LABEL[t]}</option>
+        ))}
+      </select>
+      {!compact && (
+        <>
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            After power cut
+            <select id={`ep-restore-${ep.id}`} className={field} value={ep.restorePolicy} onChange={(e) => patch(ep.id, { restorePolicy: e.target.value })}>
+              <option value="last">Same as before</option>
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+          </label>
+          <button className={`${iconBtn} ${ep.favorite ? 'text-amber-500' : ''}`} aria-pressed={ep.favorite} aria-label="Favorite" onClick={() => patch(ep.id, { favorite: !ep.favorite })}>
+            <Icon name="star" className="size-4" />
+          </button>
+          <button className={`${iconBtn} ${ep.hidden ? 'text-slate-900 dark:text-white' : ''}`} aria-pressed={ep.hidden} aria-label="Hide from home screen" onClick={() => patch(ep.id, { hidden: !ep.hidden })}>
+            <Icon name="eyeOff" className="size-4" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ChannelsSection({ siteId, role, topo, endpoints, call }: { siteId: string; role: string; topo: Topology; endpoints: EndpointView[]; call: Call }) {
   const byDevice = new Map<string, EndpointView[]>();
   for (const ep of endpoints) byDevice.set(ep.deviceId, [...(byDevice.get(ep.deviceId) ?? []), ep]);
   const patch = (id: string, body: Record<string, unknown>) => call(`/api/endpoints/${id}`, 'PATCH', body);
+  const devices = canManageDevices(role);
+  const [adding, setAdding] = useState(false);
+
+  const remove = (deviceId: string) => {
+    if (!window.confirm(`Remove board ${deviceId}? Its 6 channels disappear from scenes, it is factory-reset if online, and it can be added again later.`)) return;
+    void call(`/api/devices/${deviceId}`, 'DELETE', undefined, `Removed ${deviceId}.`);
+  };
 
   return (
     <section className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-lg font-semibold">Channels</h2>
-        <p className="text-sm text-slate-500">Name each channel after the load it switches and put it in its room. "After power cut" decides what each relay does when electricity comes back.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold">Boards and channels</h2>
+          <p className="text-sm text-slate-500">Name each channel after the load it switches and put it in its room. "After power cut" decides what each relay does when electricity comes back.</p>
+        </div>
+        {devices && (
+          <button onClick={() => setAdding(true)} className="flex shrink-0 items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-white">
+            <Icon name="plus" className="size-4" /> Add board
+          </button>
+        )}
       </div>
+      {adding && <AddDevice siteId={siteId} rooms={topo.rooms} patch={patch} onClose={() => setAdding(false)} />}
+      {byDevice.size === 0 && <p className="text-sm text-slate-500">No boards yet. Power one on and choose Add board.</p>}
       {[...byDevice].map(([deviceId, eps]) => (
         <div key={deviceId} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -218,38 +284,15 @@ function ChannelsSection({ topo, endpoints, call }: { topo: Topology; endpoints:
             <span className="flex items-center gap-2">
               {eps.some((e) => e.configPending) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">Syncing to board…</span>}
               <span className={eps[0].deviceOnline ? 'text-accent' : 'text-slate-400'}>{eps[0].deviceOnline ? 'Online' : 'Offline'}</span>
+              {devices && (
+                <button className={iconBtn} aria-label={`Remove board ${deviceId}`} title="Remove board" onClick={() => remove(deviceId)}>
+                  <Icon name="trash" className="size-4" />
+                </button>
+              )}
             </span>
           </div>
           {eps.map((ep) => (
-            <div key={ep.id} className={`flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 dark:border-slate-800 ${ep.hidden ? 'opacity-50' : ''}`}>
-              <span className="w-8 text-xs text-slate-500 tabular-nums">Ch {ep.channel}</span>
-              <NameInput id={`ep-name-${ep.id}`} label={`Channel ${ep.channel} name`} value={ep.name} onSave={(name) => patch(ep.id, { name })} />
-              <select id={`ep-room-${ep.id}`} aria-label="Room" className={field} value={ep.room?.id ?? ''} onChange={(e) => patch(ep.id, { roomId: e.target.value || null })}>
-                <option value="">No room</option>
-                {topo.rooms.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-              <select id={`ep-load-${ep.id}`} aria-label="Load type" className={field} value={ep.loadType} onChange={(e) => patch(ep.id, { loadType: e.target.value })}>
-                {LOAD_TYPES.map((t) => (
-                  <option key={t} value={t}>{LOAD_LABEL[t]}</option>
-                ))}
-              </select>
-              <label className="flex items-center gap-1 text-xs text-slate-500">
-                After power cut
-                <select id={`ep-restore-${ep.id}`} className={field} value={ep.restorePolicy} onChange={(e) => patch(ep.id, { restorePolicy: e.target.value })}>
-                  <option value="last">Same as before</option>
-                  <option value="off">Off</option>
-                  <option value="on">On</option>
-                </select>
-              </label>
-              <button className={`${iconBtn} ${ep.favorite ? 'text-amber-500' : ''}`} aria-pressed={ep.favorite} aria-label="Favorite" onClick={() => patch(ep.id, { favorite: !ep.favorite })}>
-                <Icon name="star" className="size-4" />
-              </button>
-              <button className={`${iconBtn} ${ep.hidden ? 'text-slate-900 dark:text-white' : ''}`} aria-pressed={ep.hidden} aria-label="Hide from home screen" onClick={() => patch(ep.id, { hidden: !ep.hidden })}>
-                <Icon name="eyeOff" className="size-4" />
-              </button>
-            </div>
+            <ChannelRow key={ep.id} ep={ep} rooms={topo.rooms} patch={patch} />
           ))}
         </div>
       ))}

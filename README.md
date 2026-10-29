@@ -31,12 +31,14 @@ pnpm dev           # backend :8080 + dashboard :5173
 In a second terminal:
 
 ```bash
-pnpm sim --count 2
+pnpm sim --count 3
 ```
 
-Open http://localhost:5173 and sign in with the seed admin from `hub/backend/.env` (`SEED_ADMIN_PHONE` / `SEED_ADMIN_PASSWORD`). Two simulated boards appear with 6 channels each.
+Open http://localhost:5173 and sign in with the seed admin from `hub/backend/.env` (`SEED_ADMIN_PHONE` / `SEED_ADMIN_PASSWORD`).
 
-Each simulated board bootstraps its own broker login on first run (stored in `tools/device-simulator/.sim-creds.json`; `pnpm sim --reset` forgets them).
+New boards must be claimed: the simulator prints each board's QR label text (`SW6:<id>:<setup code>`). In the app open **Rooms & channels → Add board**, type the id and code (or scan a QR on Android Chrome), then name the channels. Press `l` in the simulator to print the labels again.
+
+Each simulated board keeps its broker login in `tools/device-simulator/.sim-creds.json` (like NVS; `pnpm sim --reset` forgets them) and its setup code in `.sim-codes.json` (like the factory partition).
 
 Simulator keys: `1`–`6` flip a wall switch, `o` drops the device offline / reconnects, `Tab` switches device, `s` prints status, `q` quits.
 
@@ -44,7 +46,7 @@ Try it from your phone: open `http://<laptop-ip>:5173` on the same Wi-Fi.
 
 ## Status
 
-Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18).
+Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18, claim 18).
 
 ### Done
 
@@ -64,7 +66,9 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - Broker: Mosquitto Dynamic Security, anonymous refused, per-device logins locked to client id and own topics, bootstrap flow that issues each board its own password
 
 **Features**
-- Device auto-registration into a dev site (bootstrap + `DEV_AUTO_APPROVE_SITE`)
+- Board claim: QR label (camera on Android Chrome, or typed) + setup code verified by HMAC challenge-response with the board; 5-try lockout; only owner/technician; then name channels and pick rooms in one step
+- Remove board: factory reset, login revoked, channels deleted, board claimable again
+- Dev shortcut `DEV_AUTO_APPROVE_SITE` (off by default)
 - Floors and rooms (create, rename, reorder, delete)
 - Channel settings: name, room, load type + icon, favorite, hide, power-cut restore policy pushed to the board
 - Scenes: built-in All off, user scenes, per-room All off, per-channel result details
@@ -79,7 +83,6 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 ### Remaining
 
 **Next (software, no hardware needed)**
-- [ ] BLE claim flow: QR + proof of possession, replacing dev auto-approve
 - [ ] Members and invitations: invite by phone, guest access windows, room-limited guests
 - [ ] Push notifications (with the Capacitor app)
 - [ ] Automation conditions beyond time window (e.g. only if another channel is off), motion/sensor triggers once sensor boards exist
@@ -87,7 +90,7 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 
 **Before the first pilot**
 - [ ] TLS on the broker (8883, hub-local CA) and HTTPS for the app
-- [ ] Capacitor Android/iOS app: native BLE provisioning, push, biometric unlock, Keychain/Keystore tokens
+- [ ] Capacitor Android/iOS app: BLE Wi-Fi provisioning for factory-fresh boards (ESP-IDF security v2, setup code as PoP), QR scan on iPhone, push, biometric unlock, Keychain/Keystore tokens
 - [ ] Backend in Docker on a Raspberry Pi / mini-PC; backups of the SQLite file
 - [ ] OTA firmware updates (signed, A/B partitions, rollback)
 - [ ] Zigbee2MQTT adapter (Sonoff ZBDongle-E)
@@ -108,4 +111,5 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - Login lockout counters are in memory and reset on backend restart
 - Pending auto-off timers and board-offline timers live in memory; a backend restart drops them
 - Missed scheduled runs (hub off at that minute) are skipped, not replayed
+- Claim lockout and "recently seen" board tracking are in memory
 - Whole-house scenes take ~1.7 s for 12 channels; one message per board (`set_many`) would cut this

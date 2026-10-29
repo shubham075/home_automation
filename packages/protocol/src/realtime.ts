@@ -20,6 +20,10 @@ const RANK: Record<string, number> = {
   'org:org_owner': 3,
 };
 export const roleRank = (role: string | null | undefined) => (role ? (RANK[role] ?? -1) : -1);
+
+/** Adding and removing boards is not rank-based: technicians can, site admins cannot (§7 matrix). */
+const DEVICE_ROLES = ['owner', 'org:technician', 'org:org_admin', 'org:org_owner'];
+export const canManageDevices = (role: string | null | undefined) => DEVICE_ROLES.includes(role ?? '');
 export const CAN = { control: 0, editScenes: 1, manageRooms: 2 } as const;
 
 export type EndpointView = {

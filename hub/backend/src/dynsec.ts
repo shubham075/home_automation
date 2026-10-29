@@ -57,7 +57,12 @@ export async function ensureBrokerSetup(adminUser: string, bootstrapPassword: st
       // %c = the connecting client id, which must equal the device id: a board can only
       // announce itself and only read its own credentials.
       rolename: 'bootstrap',
-      acls: [acl('publishClientSend', 'ha/v1/bootstrap/%c/hello'), acl('subscribePattern', 'ha/v1/bootstrap/%c/creds')],
+      acls: [
+        acl('publishClientSend', 'ha/v1/bootstrap/%c/hello'),
+        acl('publishClientSend', 'ha/v1/bootstrap/%c/response'),
+        acl('subscribePattern', 'ha/v1/bootstrap/%c/creds'),
+        acl('subscribePattern', 'ha/v1/bootstrap/%c/challenge'),
+      ],
     },
   ];
   await run(

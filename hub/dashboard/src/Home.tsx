@@ -104,7 +104,7 @@ export function Home() {
       ) : !site ? (
         <p className="text-slate-500">This account has no homes yet.</p>
       ) : view === 'manage' ? (
-        <Manage siteId={site.id} notify={notify} />
+        <Manage siteId={site.id} role={site.role} notify={notify} />
       ) : view === 'automations' ? (
         <Automations siteId={site.id} canEdit={rank >= CAN.editScenes} notify={notify} />
       ) : visible.length === 0 ? (

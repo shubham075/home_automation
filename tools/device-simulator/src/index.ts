@@ -1,7 +1,9 @@
 // Usage: pnpm sim [--count 2] [--url mqtt://localhost:1883] [--reset]
 // Reads MQTT_BOOTSTRAP_PASSWORD from hub/backend/.env. --reset forgets stored device logins.
 // Keys (active device): 1-6 flip wall switch · o drop offline / reconnect · tab next device · s status · q quit
-import { rmSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { SETUP_CODE_ALPHABET } from '@sw6/protocol';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CredsStore } from './creds-store';
@@ -25,19 +27,32 @@ const credsPath = fileURLToPath(new URL('../.sim-creds.json', import.meta.url));
 if (values.reset) rmSync(credsPath, { force: true });
 const store = new CredsStore(credsPath);
 
+// Setup codes play the role of the factory partition: generated once, kept across --reset.
+const codesPath = fileURLToPath(new URL('../.sim-codes.json', import.meta.url));
+const codes: Record<string, string> = existsSync(codesPath) ? JSON.parse(readFileSync(codesPath, 'utf8')) : {};
+const codeFor = (mac: string) => {
+  if (!codes[mac]) {
+    codes[mac] = Array.from(randomBytes(8), (b) => SETUP_CODE_ALPHABET[b % SETUP_CODE_ALPHABET.length]).join('');
+    writeFileSync(codesPath, JSON.stringify(codes, null, 2));
+  }
+  return codes[mac];
+};
+
 const log = (msg: string) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 const count = Math.max(1, Math.min(20, Number(values.count)));
 
 // Stable fake MACs so restarts reuse the same device ids.
 const devices = Array.from({ length: count }, (_, i) => {
   const mac = `02:5e:06:00:00:${(i + 1).toString(16).padStart(2, '0')}`;
-  return new SimDevice(values.url!, mac, bootstrapPassword, store, log);
+  return new SimDevice(values.url!, mac, bootstrapPassword, store, codeFor(mac), log);
 });
 devices.forEach((d) => d.connect());
 
+const printLabels = () => devices.forEach((d) => log(`QR label ${d.claimed ? '(claimed)  ' : '(unclaimed)'} ${d.label}`));
 let active = 0;
 log(`${count} simulated SW6 via ${values.url}`);
-log('keys: 1-6 wall switch · o offline/online · tab next device · s status · q quit');
+printLabels();
+log('keys: 1-6 wall switch · o offline/online · tab next device · s status · l labels · q quit');
 
 if (process.stdin.isTTY) {
   process.stdin.setRawMode(true);
@@ -56,6 +71,8 @@ if (process.stdin.isTTY) {
     } else if (key === '\t') {
       active = (active + 1) % devices.length;
       log(`active device: ${devices[active].id}`);
+    } else if (key === 'l') {
+      printLabels();
     } else if (key === 's') {
       devices.forEach((d, i) => log(`${i === active ? '>' : ' '} ${d.id} ${d.online ? 'online ' : 'OFFLINE'} ${d.render()}`));
     }

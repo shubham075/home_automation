@@ -37,6 +37,8 @@ Hub-wide topics:
 |---|---|---|
 | `ha/v1/bootstrap/{deviceId}/hello` | dev → hub | First contact of an unclaimed device (bootstrap credentials) |
 | `ha/v1/bootstrap/{deviceId}/creds` | hub → dev | Per-device credentials + siteId after a successful claim |
+| `ha/v1/bootstrap/{deviceId}/challenge` | hub → dev | Claim proof-of-possession nonce `{v, nonce, ts}` |
+| `ha/v1/bootstrap/{deviceId}/response` | dev → hub | `{v, nonce, proof, ts}`, proof = hex(HMAC-SHA256(setup code, `nonce:deviceId`)) |
 | `ha/v1/{siteId}/hub/status` | hub → all | Hub online/offline (retained, LWT) |
 | `ha/v1/{siteId}/hub/time` | hub → all | Time sync broadcast (hourly, retained) for devices without NTP |
 
@@ -173,15 +175,24 @@ Anonymous clients are refused. The backend manages every login and role live thr
 
 `%c` is the connecting client id. A board using the shared bootstrap login can therefore only announce itself and only read its own credentials (verified: subscribing to another board's `creds` topic is denied).
 
-### Bootstrap sequence
+### Bootstrap and claim sequence
 
-1. Board without stored credentials connects as `bootstrap` with client id = its device id (`sw6-<mac>`), clean session.
-2. Publishes `hello` `{v, model, mac, fw, ts}`. The hub checks `deviceId == model + mac`.
-3. Hub issues credentials: creates role `device:<id>` and client `<id>` with a random 192-bit password, stores only an Argon2 hash in `device_credential`, revokes older ones.
-4. Hub publishes `creds` `{v, siteId, username, password, ts}` (QoS 1, not retained).
-5. Board saves them to NVS and reconnects as itself. If a later login is refused (code 4/5), it deletes them and bootstraps again.
+Each board has a factory **setup code** (8 characters, printed as `XXXX-XXXX` on its QR label next to the device id; QR payload `SW6:<deviceId>:<code>`). The code stays on the board and is never sent over MQTT.
 
-Approval: in dev, `DEV_AUTO_APPROVE_SITE` approves new boards into that site. In production that variable is empty, and credentials are issued only by the BLE claim step (proof of possession, W2). Hellos are rate-limited to one credential issue per board per 30 s.
+1. Board without stored credentials connects as `bootstrap` with client id = its device id (`sw6-<mac>`), clean session, subscribes to its `creds` and `challenge` topics.
+2. Publishes `hello` `{v, model, mac, fw, ts}` every ~35 s. The hub checks `deviceId == model + mac` and registers it as `unclaimed`.
+3. An owner or technician scans the label in the app. `POST /api/sites/{siteId}/devices/claim` with the device id and code.
+4. The hub publishes a random 128-bit nonce on the board's `challenge` topic. The board answers on `response` with HMAC-SHA256(setup code, `nonce:deviceId`). The hub computes the same HMAC from the code the app sent and compares in constant time (5 s timeout).
+5. On a match the hub creates role `device:<id>` and client `<id>` with a random 192-bit password, stores only an Argon2 hash in `device_credential`, revokes older ones, and publishes `creds` `{v, siteId, username, password, ts}` (QoS 1, not retained).
+6. Board saves them to NVS and reconnects as itself. If a later login is refused (code 4/5), it deletes them and bootstraps again.
+
+Protection: 5 wrong codes per board lock its claims for 10 minutes; a board already in use answers `already_claimed`; a board in another home answers `claimed_elsewhere`. Only `owner`, `org:technician` and org admins can claim or remove.
+
+**Remove:** `DELETE /api/devices/{id}` sends `factory_reset` if the board is online, deletes its broker login, clears its retained topics, deletes its channels (and their scene actions, history and commands) and marks it `unclaimed`, so it can be claimed again with the same label.
+
+**Dev shortcut:** `DEV_AUTO_APPROVE_SITE=<siteId>` skips the claim and approves every new board into that site. Empty by default.
+
+**Not yet:** the BLE step that gives a factory-fresh board the home Wi-Fi details (ESP-IDF `wifi_provisioning`, security v2 with the same setup code as proof of possession). It arrives with the firmware and the Capacitor app; bench boards are pre-configured with Wi-Fi.
 
 > Bench caveat: until the TLS listener (8883) lands before the pilot, credentials cross the LAN in clear text.
 

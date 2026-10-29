@@ -11,3 +11,4 @@ hub/mosquitto/log/
 tools/device-simulator/.sim-creds.json
 *.db-wal
 *.db-shm
+tools/device-simulator/.sim-codes.json

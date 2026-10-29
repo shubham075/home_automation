@@ -46,6 +46,7 @@ export const Cmd = z.discriminatedUnion('op', [
   cmdBase.extend({ op: z.literal('all_off') }),
   cmdBase.extend({ op: z.literal('identify'), sec: z.number().int().min(1).max(60) }),
   cmdBase.extend({ op: z.literal('reboot') }),
+  cmdBase.extend({ op: z.literal('factory_reset'), confirm: z.literal('YES') }),
 ]);
 
 export const AckError = z.enum(['invalid_channel', 'invalid_op', 'busy', 'overcurrent', 'unauthorized']);
@@ -108,6 +109,27 @@ export const Creds = z.object({
   password: z.string(),
   ts,
 });
+
+/** Claim proof of possession (hub → board). The board answers with ChallengeResponse. */
+export const Challenge = z.object({ v: v1, nonce: z.string().regex(/^[0-9a-f]{32}$/), ts });
+
+/** proof = hex(HMAC-SHA256(key = setup code, message = `${nonce}:${deviceId}`)). */
+export const ChallengeResponse = z.object({ v: v1, nonce: z.string(), proof: z.string().regex(/^[0-9a-f]{64}$/), ts });
+export type Challenge = z.infer<typeof Challenge>;
+export type ChallengeResponse = z.infer<typeof ChallengeResponse>;
+
+/** Setup code printed on the board's QR label: 8 characters, shown as XXXX-XXXX, no 0/O/1/I. */
+export const SETUP_CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+export const normalizeSetupCode = (code: string) => code.toUpperCase().replace(/[^0-9A-Z]/g, '');
+export const formatSetupCode = (code: string) => `${code.slice(0, 4)}-${code.slice(4, 8)}`;
+
+/** QR payload: "SW6:<deviceId>:<setup code>". Also accepts "<deviceId> <code>" typed by hand. */
+export function parseClaimCode(text: string): { deviceId: string; code: string } | null {
+  const m = text.trim().match(/^(?:SW6:)?([a-z0-9]+-[0-9a-f]{12})[:\s]+([0-9A-Za-z-]{8,9})$/i);
+  if (!m) return null;
+  const code = normalizeSetupCode(m[2]);
+  return code.length === 8 ? { deviceId: m[1].toLowerCase(), code } : null;
+}
 
 /** Device id is derived from model + MAC, so a board cannot claim another board's identity. */
 export const deviceIdFor = (model: string, mac: string) => `${model.toLowerCase()}-${mac.replaceAll(':', '')}`;

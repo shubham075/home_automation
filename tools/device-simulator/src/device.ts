@@ -1,12 +1,16 @@
 // A fake SW6 that follows the same MQTT contract as the firmware will.
+import { createHmac } from 'node:crypto';
 import mqtt, { type MqttClient } from 'mqtt';
 import {
+  Challenge,
   Cmd,
   Config,
   Creds,
   bootstrapTopic,
   devTopic,
   deviceIdFor,
+  formatSetupCode,
+  type ChallengeResponse,
   type CmdAck,
   type Hello,
   type Leaf,
@@ -34,9 +38,20 @@ export class SimDevice {
     readonly mac: string,
     private readonly bootstrapPassword: string,
     private readonly store: CredsStore,
+    /** Factory-programmed, printed on the QR label; survives factory reset. */
+    readonly setupCode: string,
     private readonly log: (msg: string) => void,
   ) {
     this.id = deviceIdFor('SW6', mac);
+  }
+
+  /** Text encoded in the board's QR label. */
+  get label() {
+    return `SW6:${this.id}:${formatSetupCode(this.setupCode)}`;
+  }
+
+  get claimed() {
+    return !!this.store.get(this.id);
   }
 
   get online() {
@@ -71,13 +86,23 @@ export class SimDevice {
       client.publish(bootstrapTopic(this.id, 'hello'), JSON.stringify(hello), { qos: 1 });
     };
     client.on('connect', () => {
-      client.subscribe(bootstrapTopic(this.id, 'creds'), { qos: 1 }, () => {
+      client.subscribe([bootstrapTopic(this.id, 'creds'), bootstrapTopic(this.id, 'challenge')], { qos: 1 }, () => {
         sayHello();
         clearInterval(helloTimer);
         helloTimer = setInterval(sayHello, HELLO_RETRY_MS);
       });
     });
-    client.on('message', (_t, buf) => {
+    client.on('message', (t, buf) => {
+      if (t === bootstrapTopic(this.id, 'challenge')) {
+        // Proof of possession: the setup code from the QR label never leaves the board.
+        const ch = Challenge.safeParse(JSON.parse(buf.toString()));
+        if (!ch.success) return;
+        const proof = createHmac('sha256', this.setupCode).update(`${ch.data.nonce}:${this.id}`).digest('hex');
+        const res: ChallengeResponse = { v: 1, nonce: ch.data.nonce, proof, ts: Date.now() };
+        client.publish(bootstrapTopic(this.id, 'response'), JSON.stringify(res), { qos: 1 });
+        this.log(`${this.id} answered a claim challenge`);
+        return;
+      }
       const creds = Creds.safeParse(JSON.parse(buf.toString()));
       if (!creds.success || creds.data.username !== this.id) return;
       clearInterval(helloTimer);
@@ -184,6 +209,17 @@ export class SimDevice {
       case 'identify':
       case 'reboot':
         break;
+      case 'factory_reset':
+        // Wipe stored login (NVS) and start over as an unclaimed board; the setup code stays.
+        this.ack(cmd.cid, true);
+        this.log(`${this.id} factory reset: forgetting its login, waiting to be claimed again`);
+        this.store.delete(this.id);
+        this.relays.fill(false);
+        setTimeout(() => {
+          this.client?.end(true);
+          this.bootstrap();
+        }, 500);
+        return;
     }
     this.ack(cmd.cid, ok, ok ? undefined : 'invalid_channel');
     if (changed.length) {

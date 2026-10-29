@@ -2,6 +2,8 @@
 import type { FastifyBaseLogger } from 'fastify';
 import {
   BOOTSTRAP_HELLO_WILDCARD,
+  BOOTSTRAP_RESPONSE_WILDCARD,
+  ChallengeResponse,
   CmdAck,
   DEVICE_WILDCARD,
   Event,
@@ -19,7 +21,7 @@ import { db } from './db';
 import { handleAck } from './commands';
 import { DYNSEC_RESPONSE, ensureBrokerSetup, onDynsecMessage } from './dynsec';
 import { mqttClient } from './mqtt-client';
-import { onHello } from './provisioning';
+import { onChallengeResponse, onHello } from './provisioning';
 import { broadcast } from './realtime';
 import { endpointViews } from './views';
 
@@ -37,7 +39,7 @@ export function startBridge(log: FastifyBaseLogger) {
   // without the explicit call below, the backend would never subscribe.
   const onConnect = () => {
     log.info({ url: config.MQTT_URL }, 'mqtt connected');
-    mqttClient.subscribe([DEVICE_WILDCARD, BOOTSTRAP_HELLO_WILDCARD, DYNSEC_RESPONSE], { qos: 1 }, (err) => {
+    mqttClient.subscribe([DEVICE_WILDCARD, BOOTSTRAP_HELLO_WILDCARD, BOOTSTRAP_RESPONSE_WILDCARD, DYNSEC_RESPONSE], { qos: 1 }, (err) => {
       if (err) return log.error({ err }, 'mqtt subscribe failed');
       ensureBrokerSetup(config.MQTT_ADMIN_USER, config.MQTT_BOOTSTRAP_PASSWORD)
         .then(() => log.info('broker roles and bootstrap login ready'))
@@ -53,7 +55,13 @@ export function startBridge(log: FastifyBaseLogger) {
     const boot = parseBootstrapTopic(topic);
     const key = boot?.deviceId ?? parseDevTopic(topic)?.deviceId ?? topic;
     const next = (queues.get(key) ?? Promise.resolve())
-      .then(() => (boot?.leaf === 'hello' ? onHello(boot.deviceId, Hello.parse(JSON.parse(buf.toString())), log) : handle(topic, buf)))
+      .then(() =>
+        boot?.leaf === 'hello'
+          ? onHello(boot.deviceId, Hello.parse(JSON.parse(buf.toString())), log)
+          : boot?.leaf === 'response'
+            ? onChallengeResponse(boot.deviceId, ChallengeResponse.parse(JSON.parse(buf.toString())))
+            : handle(topic, buf),
+      )
       .catch((err) => log.warn({ err: String(err), topic }, 'mqtt message rejected'));
     queues.set(key, next);
     void next.then(() => {

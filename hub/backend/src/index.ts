@@ -7,6 +7,7 @@ import websocket from '@fastify/websocket';
 import { automationRoutes, startAutomationEngine } from './automations';
 import { startBridge } from './bridge';
 import { notificationRoutes } from './notifications';
+import { deviceRoutes } from './provisioning';
 import { config } from './config';
 import { db, tuneDatabase } from './db';
 import { mqttClient } from './mqtt-client';
@@ -28,6 +29,7 @@ await app.register(topologyRoutes);
 await app.register(sceneRoutes);
 await app.register(automationRoutes);
 await app.register(notificationRoutes);
+await app.register(deviceRoutes);
 
 await tuneDatabase();
 startBridge(app.log);
