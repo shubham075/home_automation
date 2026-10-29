@@ -116,6 +116,8 @@ model SiteMembership {
   @@unique([siteId, userId])
 }
 
+// Invite = phone number + 6-digit code (shared by the inviter). Single use, expires,
+// burns after 5 wrong tries. Guest invites carry the access window copied to the membership.
 model Invitation {
   id           String    @id @default(ulid())
   siteId       String
@@ -125,9 +127,15 @@ model Invitation {
   phoneOrEmail String
   role         String
   tokenHash    String    @unique
+  attempts     Int       @default(0)
+  validFrom    DateTime?
+  validUntil   DateTime?
   expiresAt    DateTime
   acceptedAt   DateTime?
+  revokedAt    DateTime?
   createdAt    DateTime  @default(now())
+
+  @@index([phoneOrEmail])
 }
 
 // Rotating refresh tokens. Every login starts a family; each refresh replaces the token.

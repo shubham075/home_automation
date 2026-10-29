@@ -3,6 +3,7 @@ import { CAN, roleRank, type EndpointView, type RunResult, type SceneView } from
 import { api, ApiError, logout } from './api';
 import { useQueryClient } from '@tanstack/react-query';
 import { Automations } from './Automations';
+import { People } from './People';
 import { describeRun, endpointLabel, groupByFloor, useEndpoints, useMe, useNotifications, useScenes, useTopology } from './data';
 import { Icon } from './icons';
 import { Manage } from './Manage';
@@ -17,7 +18,7 @@ export function Home() {
   const topo = useTopology(site?.id);
   const scenes = useScenes(site?.id);
 
-  const [view, setView] = useState<'home' | 'automations' | 'manage'>('home');
+  const [view, setView] = useState<'home' | 'automations' | 'people' | 'manage'>('home');
   const [editing, setEditing] = useState<SceneView | 'new' | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   // endpointId → cid of the command waiting for the device's acknowledgement
@@ -93,6 +94,7 @@ export function Home() {
         <nav className="flex items-center gap-1 text-sm">
           <TabButton active={view === 'home'} onClick={() => setView('home')}>Home</TabButton>
           <TabButton active={view === 'automations'} onClick={() => setView('automations')}>Automations</TabButton>
+          <TabButton active={view === 'people'} onClick={() => setView('people')}>People</TabButton>
           {rank >= CAN.manageRooms && <TabButton active={view === 'manage'} onClick={() => setView('manage')}>Rooms & channels</TabButton>}
           {site && <Bell siteId={site.id} />}
           <button onClick={() => void logout()} className="ml-2 text-slate-500 underline-offset-4 hover:underline">Sign out</button>
@@ -105,6 +107,8 @@ export function Home() {
         <p className="text-slate-500">This account has no homes yet.</p>
       ) : view === 'manage' ? (
         <Manage siteId={site.id} role={site.role} notify={notify} />
+      ) : view === 'people' ? (
+        <People siteId={site.id} notify={notify} />
       ) : view === 'automations' ? (
         <Automations siteId={site.id} canEdit={rank >= CAN.editScenes} notify={notify} />
       ) : visible.length === 0 ? (

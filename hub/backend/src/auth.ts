@@ -61,6 +61,10 @@ export async function accessibleSites(userId: string) {
     if (om.role === 'support') continue;
     for (const s of om.org.sites) sites.set(s.id, { ...s, role: `org:${om.role}` });
   }
-  for (const sm of user.siteMemberships) sites.set(sm.site.id, { ...sm.site, role: sm.role });
+  const now = new Date();
+  for (const sm of user.siteMemberships) {
+    if ((sm.validFrom && sm.validFrom > now) || (sm.validUntil && sm.validUntil <= now)) continue; // guest outside window
+    sites.set(sm.site.id, { ...sm.site, role: sm.role });
+  }
   return { user, sites: [...sites.values()] };
 }

@@ -8,6 +8,7 @@ import { config } from './config';
 import { db } from './db';
 import { clearFailures, lockedFor, recordFailure } from './lockout';
 import { mqttClient } from './mqtt-client';
+import { AcceptInvite, InviteError, acceptInvitation } from './members';
 import { join } from './realtime';
 import { issueRefreshToken, revokeByToken, rotateRefreshToken } from './tokens';
 import { endpointViews } from './views';
@@ -60,12 +61,35 @@ export async function routes(app: FastifyInstance) {
       }
 
       clearFailures(phone);
-      await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-      const { token } = await issueRefreshToken(user.id, req.headers['user-agent']);
-      const res = { accessToken: app.jwt.sign({ sub: user.id }), user: { id: user.id, name: user.name, phone: user.phone } };
-      if (client === 'native') return { ...res, refreshToken: token };
-      setRefreshCookie(req, reply, token);
-      return res;
+      return startSession(req, reply, user, client);
+    },
+  );
+
+  /** Issues access + refresh tokens (cookie for web, body for native). */
+  async function startSession(req: FastifyRequest, reply: FastifyReply, user: { id: string; name: string; phone: string }, client: 'web' | 'native') {
+    await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    const { token } = await issueRefreshToken(user.id, req.headers['user-agent']);
+    const res = { accessToken: app.jwt.sign({ sub: user.id }), user: { id: user.id, name: user.name, phone: user.phone } };
+    if (client === 'native') return { ...res, refreshToken: token };
+    setRefreshCookie(req, reply, token);
+    return res;
+  }
+
+  // Public: joining a home with phone + invite code doubles as sign-up (new people)
+  // or sign-in (existing accounts must give their password).
+  app.post(
+    '/api/invitations/accept',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const body = AcceptInvite.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: 'invalid_body' });
+      try {
+        const user = await acceptInvitation(body.data);
+        return startSession(req, reply, user, body.data.client);
+      } catch (err) {
+        if (err instanceof InviteError) return reply.code(err.httpStatus).send({ error: err.code });
+        throw err;
+      }
     },
   );
 
@@ -135,7 +159,7 @@ export async function routes(app: FastifyInstance) {
     try {
       const { sub } = app.jwt.verify<{ sub: string }>(req.query.token ?? '');
       const { sites } = await accessibleSites(sub);
-      join(socket, sites.map((s) => s.id));
+      join(socket, sites.map((s) => s.id), sub);
     } catch {
       socket.close(4401, 'unauthorized');
     }

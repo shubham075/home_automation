@@ -59,6 +59,8 @@ export function useLive(siteId: string | undefined, onCommandResult: (r: Command
         setConnected(false);
         if (closed) return;
         const delay = Math.min(30_000, 1000 * 2 ** retry++);
+        // 4403: our access to a site changed (removed, new role); reload who we are and where we belong.
+        if (e.code === 4403) qc.invalidateQueries({ queryKey: ['me'] });
         // 4401: the access token expired while we were disconnected; get a fresh one first.
         timer = window.setTimeout(() => (e.code === 4401 ? refreshSession().then((ok) => ok && open()) : open()), delay);
       };

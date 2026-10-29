@@ -57,6 +57,14 @@ export async function login(phone: string, password: string) {
   setSession(data.accessToken);
 }
 
+/** Join a home with phone + invite code; signs up new people, signs in existing ones. */
+export async function acceptInvite(body: { phone: string; code: string; name?: string; password: string }) {
+  const res = await post('/api/invitations/accept', body);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data.error ?? 'request_failed', data);
+  setSession(data.accessToken);
+}
+
 export async function logout() {
   await post('/api/auth/logout', {}).catch(() => undefined);
   setSession(null);

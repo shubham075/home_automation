@@ -46,7 +46,7 @@ Try it from your phone: open `http://<laptop-ip>:5173` on the same Wi-Fi.
 
 ## Status
 
-Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18, claim 18).
+Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25, automations 18, claim 18, members 31).
 
 ### Done
 
@@ -68,6 +68,7 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 **Features**
 - Board claim: QR label (camera on Android Chrome, or typed) + setup code verified by HMAC challenge-response with the board; 5-try lockout; only owner/technician; then name channels and pick rooms in one step
 - Remove board: factory reset, login revoked, channels deleted, board claimable again
+- People: invite by phone + 6-digit code (single use, 72 h, bound to the phone, burns after 5 wrong tries, stored hashed); accepting signs new people up or existing accounts in; roles owner/admin/member/guest with who-can-assign rules; guest access windows; change role, remove (cuts live connections), leave, cancel invites, transfer ownership (handover)
 - Dev shortcut `DEV_AUTO_APPROVE_SITE` (off by default)
 - Floors and rooms (create, rename, reorder, delete)
 - Channel settings: name, room, load type + icon, favorite, hide, power-cut restore policy pushed to the board
@@ -77,13 +78,14 @@ Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the d
 - In-app notifications with unread badge
 
 **Apps and tools**
-- React PWA dashboard: Home, scenes, scene editor, Automations with guided editor, notifications, Rooms & channels + site location (admins)
+- React PWA dashboard: Home, scenes, scene editor, Automations with guided editor, notifications, People, invite-code sign-up, Rooms & channels + site location + add/remove boards (admins)
 - Device simulator: bootstrap, stored credentials, config, keyboard wall switches, offline drop
 
 ### Remaining
 
 **Next (software, no hardware needed)**
-- [ ] Members and invitations: invite by phone, guest access windows, room-limited guests
+- [ ] Room-limited guests (guest sees only chosen rooms)
+- [ ] Invite delivery by SMS / WhatsApp (cloud phase); today the inviter shares the code
 - [ ] Push notifications (with the Capacitor app)
 - [ ] Automation conditions beyond time window (e.g. only if another channel is off), motion/sensor triggers once sensor boards exist
 - [ ] Energy history and charts once metering hardware exists

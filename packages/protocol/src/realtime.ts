@@ -24,6 +24,26 @@ export const roleRank = (role: string | null | undefined) => (role ? (RANK[role]
 /** Adding and removing boards is not rank-based: technicians can, site admins cannot (§7 matrix). */
 const DEVICE_ROLES = ['owner', 'org:technician', 'org:org_admin', 'org:org_owner'];
 export const canManageDevices = (role: string | null | undefined) => DEVICE_ROLES.includes(role ?? '');
+
+/** Inviting and managing people: owners, site admins and org admins (technicians cannot). */
+const MEMBER_ROLES = ['owner', 'admin', 'org:org_admin', 'org:org_owner'];
+export const canManageMembers = (role: string | null | undefined) => MEMBER_ROLES.includes(role ?? '');
+
+/** Roles a manager may hand out. Owner is only reachable through a transfer. */
+export const assignableRoles = (role: string | null | undefined): string[] =>
+  roleRank(role) >= 3 ? ['admin', 'member', 'guest'] : role === 'admin' ? ['member', 'guest'] : [];
+
+export type MemberView = {
+  userId: string;
+  name: string;
+  phone: string;
+  role: string;
+  validFrom: string | null;
+  validUntil: string | null;
+  you: boolean;
+};
+
+export type InvitationView = { id: string; phone: string; role: string; expiresAt: string; validFrom: string | null; validUntil: string | null };
 export const CAN = { control: 0, editScenes: 1, manageRooms: 2 } as const;
 
 export type EndpointView = {
