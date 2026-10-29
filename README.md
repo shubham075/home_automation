@@ -44,11 +44,64 @@ Try it from your phone: open `http://<laptop-ip>:5173` on the same Wi-Fi.
 
 ## Status
 
-Working end to end:
-- Auth: 15-min access tokens, rotating refresh tokens with reuse detection (httpOnly cookie on web, body for native), logout, per-IP rate limit + per-account lockout, site access control
-- Broker: anonymous refused, per-device logins locked to client id and own topics (Mosquitto Dynamic Security), bootstrap flow that issues each board its own password
-- Devices: app command → MQTT → device ack with retry/timeout, wall-switch changes pushed live to every open app, offline detection via Last Will
-- Rooms & channels (admin/technician): floors, rooms (create, rename, reorder, delete), per-channel name, room, load type + icon, favorite, hide, power-cut restore policy pushed to the board as retained config
-- Scenes: built-in All off, user scenes (member and up), per-room All off; runs wait for every ack and report which channels did not respond
+Last updated: 30 Oct 2026. Everything under "Done" runs end to end against the device simulator and is covered by end-to-end checks (auth 21, rooms and scenes 25).
 
-Not yet: TLS on the broker (before pilot), BLE claim flow (dev auto-approves into a site), automations/schedules, OTA, Zigbee2MQTT, firmware, Capacitor app.
+### Done
+
+**Design**
+- Architecture, MQTT protocol spec, multi-tenant ER model, 14 workflow pipelines, parts list (₹7–8k prototype), wiring guide and SVG schematics: [docs/](docs/README.md)
+
+**Hub platform**
+- pnpm monorepo: shared `@sw6/protocol` (topics, zod schemas, WebSocket types, role ranks)
+- Fastify + TypeScript backend, Prisma schema for the whole ER model, SQLite in WAL mode
+- MQTT bridge with per-device ordered processing; commands with ack, one retry, timeout
+- Live updates to every open app over WebSocket
+
+**Security**
+- Users: 15-min access tokens, rotating 30-day refresh tokens with reuse detection, httpOnly cookie on web / body for native, logout
+- Login abuse: per-IP rate limit, per-account lockout, constant-time rejection
+- Roles: guest < member < admin/technician < owner, enforced on every route
+- Broker: Mosquitto Dynamic Security, anonymous refused, per-device logins locked to client id and own topics, bootstrap flow that issues each board its own password
+
+**Features**
+- Device auto-registration into a dev site (bootstrap + `DEV_AUTO_APPROVE_SITE`)
+- Floors and rooms (create, rename, reorder, delete)
+- Channel settings: name, room, load type + icon, favorite, hide, power-cut restore policy pushed to the board
+- Scenes: built-in All off, user scenes, per-room All off, per-channel result details
+- Wall-switch changes shown live with "wall switch" source; offline detection via Last Will
+
+**Apps and tools**
+- React PWA dashboard: Home, scenes, scene editor, Rooms & channels (admins)
+- Device simulator: bootstrap, stored credentials, config, keyboard wall switches, offline drop
+
+### Remaining
+
+**Next (software, no hardware needed)**
+- [ ] Automations and schedules: time, sunrise/sunset, wall switch, device offline triggers
+- [ ] BLE claim flow: QR + proof of possession, replacing dev auto-approve
+- [ ] Members and invitations: invite by phone, guest access windows, room-limited guests
+- [ ] Notifications (in-app first, then push)
+- [ ] Energy history and charts once metering hardware exists
+
+**Before the first pilot**
+- [ ] TLS on the broker (8883, hub-local CA) and HTTPS for the app
+- [ ] Capacitor Android/iOS app: native BLE provisioning, push, biometric unlock, Keychain/Keystore tokens
+- [ ] Backend in Docker on a Raspberry Pi / mini-PC; backups of the SQLite file
+- [ ] OTA firmware updates (signed, A/B partitions, rollback)
+- [ ] Zigbee2MQTT adapter (Sonoff ZBDongle-E)
+- [ ] Unit tests and CI (GitHub Actions); move the e2e checks into the repo
+
+**Hardware and firmware (parts on order)**
+- [ ] ESP-IDF firmware for ESP32-C6 matching the simulator contract (`firmware/sw6-esp32c6`)
+- [ ] Bench build stages 1–7 (`docs/06-wiring.md`), then perfboard prototype in ABS box
+- [ ] Custom PCB v1 (KiCad → JLCPCB), thermal and switching-cycle tests
+
+**Product phase**
+- [ ] Cloud: hub cloud agent, remote access, fleet OTA, Postgres, voice assistants
+- [ ] Secure boot + flash encryption, Matter, BIS / WPC certification
+- [ ] Partner/installer portal, installation jobs, billing
+
+**Known limitations**
+- Credentials cross the LAN in clear text until broker TLS lands
+- Login lockout counters are in memory and reset on backend restart
+- Whole-house scenes take ~1.7 s for 12 channels; one message per board (`set_many`) would cut this
